@@ -78,15 +78,21 @@ class RZDParser:
 
             sid_seats: int = 0
             sid_min_price: float = 9999999999999999
+
             for t in train_json['CarGroups'][:-1]:
                 if t['CarTypeName'] == 'ПЛАЦ':
                     plaz_seats += int(t['TotalPlaceQuantity'])
                     plaz_min_price = min(plaz_min_price, float(t['MinPrice']))
+                elif t['CarTypeName'] == 'СВ':
+                    sw_seats += int(t['TotalPlaceQuantity'])
+                    sw_min_price = min(sw_min_price, float(t['MinPrice']))
+                elif t['CarTypeName'] == 'КУПЕ':
+                    cupe_seats += int(t['TotalPlaceQuantity'])
+                    cupe_min_price = min(cupe_min_price, float(t['MinPrice']))
                 elif t['CarTypeName'] == 'СИД':
-                    sid_min_price = min(sid_min_price, float(t['MinPrice']))
                     sid_seats += int(t['PlaceQuantity'])
-                #  TODO: добавить обработку СВ
-                #  TODO: добавить обработку Купе
+                    sid_min_price = min(sid_min_price, float(t['MinPrice']))
+
             trains.append(
                 Train(
                     DisplayTrainNumber=train_json['DisplayTrainNumber'],
