@@ -5,16 +5,20 @@ from aiogram import Dispatcher, Bot
 from aiogram.fsm.storage.redis import RedisStorage, Redis
 
 from config import get_config
+from handlers.start import router as start_router
+from handlers.invoices import router as invoices_router
 
 logger = logging.getLogger(__name__)
 
 
 def setup_middlewares(dp: Dispatcher):
+    #  Зарегать юзерскую мидлварь (обработка бана + создание нового юзера)
     pass
 
 
 def setup_routers(dp: Dispatcher):
-    pass
+    dp.include_router(start_router)
+    dp.include_router(invoices_router)
 
 
 async def main():
@@ -31,6 +35,7 @@ async def main():
     )
     bot = Bot(token=config.tg_bot.token, parse_mode='HTML')
     dp = Dispatcher(storage=storage)
+
     setup_middlewares(dp)
     setup_routers(dp)
 
