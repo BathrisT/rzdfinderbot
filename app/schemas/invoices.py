@@ -7,11 +7,11 @@ class InvoiceCreateSchema(Base):
     user_id: int
 
     is_payment_successful: bool = False
-    payment_status: Optional[str]
-    payment_comment: Optional[str]
+    payment_status: Optional[str] = None
+    payment_comment: Optional[str] = None
 
 
 class InvoiceUpdateSchema(Base):
-    is_payment_successful: Optional[bool]
-    payment_status: Optional[str]
-    payment_comment: Optional[str]
+    is_payment_successful: Optional[bool] = None
+    payment_status: Optional[str] = None
+    payment_comment: Optional[str] = None

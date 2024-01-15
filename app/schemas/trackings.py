@@ -8,18 +8,16 @@ class TrackingCreateSchema(BaseModel):
     from_city_id: str
     to_city_id: str
     date: datetime.date
-    max_price: Optional[int]
+    max_price: Optional[int] = None
 
 
 class TrackingUpdateSchema(BaseModel):
-    from_city_id: Optional[str]
-    to_city_id: Optional[str]
-    date: Optional[datetime.date]
-    max_price: Optional[int]
+    from_city_id: Optional[str] = None
+    to_city_id: Optional[str] = None
+    date: Optional[datetime.date] = None
+    max_price: Optional[int] = None
 
-    first_notification_sent_at: Optional[datetime.datetime]
+    first_notification_sent_at: Optional[datetime.datetime] = None
 
-    is_finished: Optional[bool]
-    finished_at: Optional[datetime.datetime]
-
-    created_at: datetime.datetime
+    is_finished: Optional[bool] = None
+    finished_at: Optional[datetime.datetime] = None

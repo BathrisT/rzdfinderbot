@@ -22,8 +22,3 @@ async_session_maker = sessionmaker(bind=engine, class_=AsyncSession,
                                    autoflush=True, autocommit=False, expire_on_commit=False)
 
 Base = declarative_base()
-
-
-async def get_async_session():
-    async with async_session_maker() as session:
-        yield session

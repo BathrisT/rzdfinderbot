@@ -7,13 +7,14 @@ from aiogram.fsm.storage.redis import RedisStorage, Redis
 from config import get_config
 from handlers.start import router as start_router
 from handlers.invoices import router as invoices_router
+from middlewares.user_middleware import UserMiddleware
 
 logger = logging.getLogger(__name__)
 
 
 def setup_middlewares(dp: Dispatcher):
-    #  Зарегать юзерскую мидлварь (обработка бана + создание нового юзера)
-    pass
+    dp.message.register(UserMiddleware())
+    dp.callback_query.register(UserMiddleware())
 
 
 def setup_routers(dp: Dispatcher):

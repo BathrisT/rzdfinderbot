@@ -2,11 +2,11 @@ from typing import Callable, Awaitable, Any
 
 from aiogram.dispatcher.middlewares.base import BaseMiddleware
 from aiogram.types import CallbackQuery, TelegramObject, User
+from cruds.users import UserManager
+from database import async_session_maker
 
-from cruds.admins import admin_crud
-from cruds.users import user_crud
 from models.users import UserModel
-from schemas.users import UserCreateSchema
+from schemas.users import UserCreateSchema, UserUpdateSchema
 
 
 class UserMiddleware(BaseMiddleware):
@@ -16,14 +16,28 @@ class UserMiddleware(BaseMiddleware):
     ) -> UserModel:
         event_from_user: User = context_data['event_from_user']
 
-        current_user = await user_crud.get(obj_id=event_from_user.id)
-        if current_user is None:
-            current_user = await user_crud.create(UserCreateSchema(
-                id=event_from_user.id,
-                first_name=event_from_user.first_name,
-                last_name=event_from_user.last_name,
-                username=event_from_user.username
-            ))
+        async with async_session_maker() as session:
+            user_crud = UserManager(session=session)
+
+            current_user = await user_crud.get(obj_id=event_from_user.id)
+            if current_user is None:
+                current_user = await user_crud.create(UserCreateSchema(
+                    id=event_from_user.id,
+                    first_name=event_from_user.first_name,
+                    last_name=event_from_user.last_name,
+                    username=event_from_user.username
+                ))
+            else:
+                await user_crud.update(
+                    obj_id=event_from_user.id,
+                    obj_in=UserUpdateSchema(
+                        first_name=event_from_user.first_name,
+                        last_name=event_from_user.last_name,
+                        username=event_from_user.username
+                    )
+                )
+            await session.commit()
+
         context_data["current_user"] = current_user
         return current_user
 
@@ -36,10 +50,8 @@ class UserMiddleware(BaseMiddleware):
         current_user = await self._add_current_user_to_context(
             context_data=data
         )
-        # Если юзер забанен и не админ - доступ к боту заблокирован
+        # Если юзер забанен - доступ к боту заблокирован
         if current_user.is_banned:
-            admin = await admin_crud.get(current_user.id)
-            if not admin:
-                return
+            return
 
         return await handler(event, data)
