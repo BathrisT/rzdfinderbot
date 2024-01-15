@@ -20,7 +20,7 @@ class TrackingNotificationModel(Base):
     user_id = mapped_column(BigInteger, ForeignKey('users.id', ondelete='CASCADE'))
     train_number: Mapped[Optional[str]] = mapped_column()
 
-    created_at: Mapped[datetime.datetime] = mapped_column()
+    created_at: Mapped[datetime.datetime] = mapped_column(default=datetime.datetime.utcnow)
 
     tracking: Mapped['TrackingModel'] = relationship()
     user: Mapped['UserModel'] = relationship()

@@ -6,9 +6,13 @@ from aiogram.types.message import Message
 from aiogram.types.callback_query import CallbackQuery
 from aiogram.types.labeled_price import LabeledPrice
 from aiogram.types.pre_checkout_query import PreCheckoutQuery
+from cruds.users import UserManager
+from database import async_session_maker
 
 from keyboards.invoices import create_invoice_keyboard
 from keyboards.start import return_to_start_keyboard
+from models.users import UserModel
+from schemas.users import UserUpdateSchema
 from utils.delete_state_messages import delete_state_messages
 
 router = Router()
@@ -33,7 +37,11 @@ async def create_invoice(callback: CallbackQuery, state: FSMContext):
         reply_markup=create_invoice_keyboard(invoice_link=invoice_link)
     )
 
-    #  TODO: Занести созданный счет в бд
+    #  Заносим созданный счет в бд
+    # async with async_session_maker() as session:
+    #     invoice_crud = InvoiceManager(session=session)
+    #     await invoice_crud.create(InvoiceCreateSchema())
+    #     await session.commit()
 
     await delete_state_messages(
         query=callback,
@@ -47,15 +55,30 @@ async def pre_checkout_query(query: PreCheckoutQuery):
 
 
 @router.message(F.successful_payment)
-async def handle_successful_payment(message: Message, state: FSMContext):
+async def handle_successful_payment(message: Message, current_user: UserModel, state: FSMContext):
     tg_user_id, date_string, invoice_message_id = message.successful_payment.invoice_payload.split('_')
 
+    # рассчитываем сколько прибавить
     subscription_add_date = datetime.timedelta(days=0)
     if date_string == '1month':
         subscription_add_date = datetime.timedelta(days=30)
-    # TODO: Добавляем к подписке 30 дней в бд, или если подписки нет, то текущая дата + 30 дней
 
-    #  Удаляем сообщение со счетом для оплаты
+    # рассчитываем какую дату занести в бд
+    new_subscription_date = current_user.subscription_expires_at
+    if new_subscription_date is None or new_subscription_date < datetime.datetime.utcnow():
+        new_subscription_date = datetime.datetime.utcnow()
+    new_subscription_date += subscription_add_date
+
+    # Обновляем дату окончания подписки у юзера
+    async with async_session_maker() as session:
+        user_crud = UserManager(session=session)
+        await user_crud.update(
+            obj_id=current_user.id,
+            obj_in=UserUpdateSchema(subscription_expires_at=new_subscription_date)
+        )
+        await session.commit()
+
+    # Удаляем сообщение со счетом для оплаты
     try:
         await message.bot.delete_message(
             chat_id=message.from_user.id,
@@ -65,14 +88,14 @@ async def handle_successful_payment(message: Message, state: FSMContext):
         pass
 
     text = (
-        '''
-        <b>⚡️ Подписка успешно оплачена</b>
-        
-        Теперь вы имеете полный доступ к возможности отслеживания. Для начала использования, <b>нажмите на кнопку ниже</b>
-        
-        <i>Срок действия: до 12.02.2022 11:42</i>
-        '''
-    )  # TODO: изменить срок действия на верный
+f'''
+<b>⚡️ Подписка успешно оплачена</b>
+
+Теперь вы имеете полный доступ к возможности отслеживания. Для начала использования, <b>нажмите на кнопку ниже</b>
+
+<i>Срок действия: до {new_subscription_date.strftime('%d.%m.%Y %H:%M')}</i>
+'''
+    )
     await message.answer(
         text=text,
         parse_mode='HTML',

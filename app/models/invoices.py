@@ -20,7 +20,7 @@ class InvoiceModel(Base):
     payment_status: Mapped[Optional[str]] = mapped_column()
     payment_comment: Mapped[Optional[str]] = mapped_column()
 
-    created_at: Mapped[datetime.datetime] = mapped_column()
-    updated_at: Mapped[datetime.datetime] = mapped_column()
+    created_at: Mapped[datetime.datetime] = mapped_column(default=datetime.datetime.utcnow)
+    updated_at: Mapped[datetime.datetime] = mapped_column(onupdate=datetime.datetime.utcnow)
 
     user: Mapped['UserModel'] = relationship()

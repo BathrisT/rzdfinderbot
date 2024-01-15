@@ -10,6 +10,9 @@ from schemas.users import UserCreateSchema, UserUpdateSchema
 
 
 class UserMiddleware(BaseMiddleware):
+    """
+    Мидлварь, которая проверяет заблокирован ли юзер, и добавляет его объект в контекст (+ создает, если нужно)
+    """
     @staticmethod
     async def _add_current_user_to_context(
             context_data: dict

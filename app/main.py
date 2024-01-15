@@ -13,8 +13,9 @@ logger = logging.getLogger(__name__)
 
 
 def setup_middlewares(dp: Dispatcher):
-    dp.message.register(UserMiddleware())
-    dp.callback_query.register(UserMiddleware())
+    # Мидлварь которая проверяет блокировку юзера и добавляет его в контекст
+    dp.message.outer_middleware.register(UserMiddleware())
+    dp.callback_query.outer_middleware.register(UserMiddleware())
 
 
 def setup_routers(dp: Dispatcher):

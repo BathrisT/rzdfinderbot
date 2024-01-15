@@ -25,6 +25,6 @@ class TrackingModel(Base):
     is_finished: Mapped[bool] = mapped_column(server_default='FALSE')
     finished_at: Mapped[Optional[datetime.datetime]] = mapped_column()
 
-    created_at: Mapped[datetime.datetime] = mapped_column()
+    created_at: Mapped[datetime.datetime] = mapped_column(default=datetime.datetime.utcnow)
 
     user: Mapped['UserModel'] = relationship()

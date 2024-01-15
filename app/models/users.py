@@ -18,4 +18,4 @@ class UserModel(Base):
     is_banned: Mapped[bool] = mapped_column(default=False)  # забанен ли в боте
     subscription_expires_at: Mapped[Optional[datetime.datetime]] = mapped_column()  # Когда истекает подписка
 
-    created_at: Mapped[datetime.datetime] = mapped_column()
+    created_at: Mapped[datetime.datetime] = mapped_column(default=datetime.datetime.utcnow)

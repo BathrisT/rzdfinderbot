@@ -16,7 +16,7 @@ class BaseManager(Generic[ModelType, CreateSchema, UpdateSchema]):
         self._model: ModelType = get_args(self.__orig_bases__[0])[0]
 
     async def create(self, obj_in: CreateSchema) -> ModelType:
-        query = insert(self._model).values(**obj_in.dict()).returning(self._model)
+        query = insert(self._model).values(**obj_in.model_dump()).returning(self._model)
         result = await self._session.execute(query)
         obj = result.scalar_one()
         return obj
@@ -24,7 +24,7 @@ class BaseManager(Generic[ModelType, CreateSchema, UpdateSchema]):
     async def create_multi(self, objs_in: List[CreateSchema]) -> List[ModelType]:
         objs: List[ModelType] = []
         for obj_in in objs_in:
-            query = insert(self._model).values(**obj_in.dict()).returning(self._model)
+            query = insert(self._model).values(**obj_in.model_dump()).returning(self._model)
             result = await self._session.execute(query)
             obj = result.scalar_one()
             objs.append(obj)
@@ -71,7 +71,7 @@ class BaseManager(Generic[ModelType, CreateSchema, UpdateSchema]):
         return list(result.all())
 
     async def update(self, obj_id: Union[int, str, UUID], obj_in: UpdateSchema) -> None:
-        stmt = update(self._model).where(self._model.id == obj_id).values(**obj_in.dict(exclude_unset=True))
+        stmt = update(self._model).where(self._model.id == obj_id).values(**obj_in.model_dump(exclude_none=True))
         await self._session.execute(stmt)
         return None
 

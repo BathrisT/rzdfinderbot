@@ -1,3 +1,4 @@
+import datetime
 from typing import Union
 
 from aiogram import Router, F
@@ -5,15 +6,17 @@ from aiogram.filters.command import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types.callback_query import CallbackQuery
 from aiogram.types.message import Message
+from filters.subscription_filter import SubscriptionFilter
 
 from keyboards.start import start_keyboard_without_subscription
+from models.users import UserModel
 from utils.add_messages_in_state_to_delete import add_messages_in_state_to_delete
 
 router = Router()
 
 
-@router.callback_query(F.data == 'start')  # TODO: добавить фильтр на отсутствие подписки
-@router.message(Command('start'))  # TODO: добавить фильтр на отсутствие подписки
+@router.callback_query(F.data == 'start', SubscriptionFilter(checking_for_lack=True))
+@router.message(Command('start'), SubscriptionFilter(checking_for_lack=True))
 async def start_without_subscription(query: Union[Message, CallbackQuery], state: FSMContext):
     text = (
 '''
@@ -33,6 +36,26 @@ async def start_without_subscription(query: Union[Message, CallbackQuery], state
         text=text,
         parse_mode='HTML',
         reply_markup=start_keyboard_without_subscription(),
+        disable_web_page_preview=True
+    )
+    await add_messages_in_state_to_delete(
+        query=query,
+        state=state,
+        messages=[sent_message]
+    )
+
+@router.callback_query(F.data == 'start', SubscriptionFilter(checking_for_lack=False))
+@router.message(Command('start'), SubscriptionFilter(checking_for_lack=False))
+async def start_with_subscription(query: Union[Message, CallbackQuery], current_user: UserModel, state: FSMContext):
+    text = (
+        f'Ваша подписка оплачена до \n'
+        f'{current_user.subscription_expires_at.isoformat()}'
+    )
+
+    sent_message = await query.bot.send_message(
+        chat_id=query.from_user.id,
+        text=text,
+        parse_mode='HTML',
         disable_web_page_preview=True
     )
     await add_messages_in_state_to_delete(
