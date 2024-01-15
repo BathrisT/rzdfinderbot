@@ -20,7 +20,7 @@ async def create_invoice(callback: CallbackQuery, state: FSMContext):
         title='🚅 Оплата подписки на отслеживание билетов РЖД',
         description='30 дней',
         payload=f'{callback.from_user.id}_1month_{callback.message.message_id}',
-        provider_token='381764678:TEST:75410',
+        provider_token='381764678:TEST:75410',  # TODO: брать из конфига
         currency='RUB',
         prices=[LabeledPrice(label='Подписка на 30 дней', amount='10000')]
     )

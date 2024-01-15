@@ -14,7 +14,7 @@ class InvoiceModel(Base):
     __tablename__ = 'invoices'
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)  # tg id
-    user_id = mapped_column(BigInteger, ForeignKey('users.id', ondelete='IGNORE'))
+    user_id = mapped_column(BigInteger, ForeignKey('users.id', ondelete='SET NULL'))
 
     is_payment_successful: Mapped[bool] = mapped_column()
     payment_status: Mapped[Optional[str]] = mapped_column()

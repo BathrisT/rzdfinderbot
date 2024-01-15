@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from models.users import UserModel
 
 
-class TrackinNotification(Base):
+class TrackingNotificationModel(Base):
     __tablename__ = 'tracking_notifications'
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)  # tg id
