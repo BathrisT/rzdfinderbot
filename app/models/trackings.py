@@ -15,8 +15,13 @@ class TrackingModel(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)  # tg id
     user_id = mapped_column(BigInteger, ForeignKey('users.id', ondelete='CASCADE'))
+
+    from_city_name: Mapped[str] = mapped_column()
     from_city_id: Mapped[str] = mapped_column()
+
+    to_city_name: Mapped[str] = mapped_column()
     to_city_id: Mapped[str] = mapped_column()
+
     date: Mapped[datetime.date] = mapped_column()
     max_price: Mapped[Optional[int]] = mapped_column(DECIMAL, nullable=True)
 

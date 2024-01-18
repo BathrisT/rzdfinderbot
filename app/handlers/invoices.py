@@ -7,7 +7,7 @@ from aiogram.types.callback_query import CallbackQuery
 from aiogram.types.labeled_price import LabeledPrice
 from aiogram.types.pre_checkout_query import PreCheckoutQuery
 from cruds.users import UserManager
-from database import async_session_maker
+from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from keyboards.invoices import create_invoice_keyboard
 from keyboards.start import return_to_start_keyboard
@@ -38,10 +38,10 @@ async def create_invoice(callback: CallbackQuery, state: FSMContext):
     )
 
     #  Заносим созданный счет в бд
-    # async with async_session_maker() as session:
-    #     invoice_crud = InvoiceManager(session=session)
-    #     await invoice_crud.create(InvoiceCreateSchema())
-    #     await session.commit()
+    #
+    #  invoice_crud = InvoiceManager(session=session)
+    #  await invoice_crud.create(InvoiceCreateSchema())
+    #  await session.commit()
 
     await delete_state_messages(
         query=callback,
@@ -55,7 +55,12 @@ async def pre_checkout_query(query: PreCheckoutQuery):
 
 
 @router.message(F.successful_payment)
-async def handle_successful_payment(message: Message, current_user: UserModel, state: FSMContext):
+async def handle_successful_payment(
+        message: Message,
+        current_user: UserModel,
+        state: FSMContext,
+        session: AsyncSession
+):
     tg_user_id, date_string, invoice_message_id = message.successful_payment.invoice_payload.split('_')
 
     # рассчитываем сколько прибавить
@@ -70,13 +75,12 @@ async def handle_successful_payment(message: Message, current_user: UserModel, s
     new_subscription_date += subscription_add_date
 
     # Обновляем дату окончания подписки у юзера
-    async with async_session_maker() as session:
-        user_crud = UserManager(session=session)
-        await user_crud.update(
-            obj_id=current_user.id,
-            obj_in=UserUpdateSchema(subscription_expires_at=new_subscription_date)
-        )
-        await session.commit()
+    user_crud = UserManager(session=session)
+    await user_crud.update(
+        obj_id=current_user.id,
+        obj_in=UserUpdateSchema(subscription_expires_at=new_subscription_date)
+    )
+    await session.commit()
 
     # Удаляем сообщение со счетом для оплаты
     try:

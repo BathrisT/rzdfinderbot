@@ -5,15 +5,24 @@ from pydantic import BaseModel
 
 class TrackingCreateSchema(BaseModel):
     user_id: int
+
+    from_city_name: str
     from_city_id: str
+
+    to_city_name: str
     to_city_id: str
+
     date: datetime.date
     max_price: Optional[int] = None
 
 
 class TrackingUpdateSchema(BaseModel):
+    from_city_name: Optional[str] = None
     from_city_id: Optional[str] = None
+
+    to_city_name: Optional[str] = None
     to_city_id: Optional[str] = None
+
     date: Optional[datetime.date] = None
     max_price: Optional[int] = None
 
