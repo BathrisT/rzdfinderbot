@@ -36,10 +36,17 @@ class RZDParser:
             url='api/v1/suggests',
             params={
                 'Query': query,
-                'TransportType': 'bus,avia,rail,aeroexpress,suburban,boat'
+                'TransportType': 'bus,avia,rail,aeroexpress,suburban,boat',
+                'GroupResults': True,
+                'RailwaySortPriority': True,
+                'MergeSuburban': True
             }
         )
-        return [City.model_validate(city) for city in response.json() if city['transportType'] == 'train']
+        response_data = response.json()
+        if len(response_data) == 0:
+            return []
+        cities = response_data['city']
+        return [City.model_validate(city) for city in cities if 'expressCode' in city]
 
     async def get_trains(
             self,
@@ -116,14 +123,15 @@ class RZDParser:
 
 async def main():
     parser = RZDParser()
-    data = await parser.get_trains(
-        from_city_id='2060600',
-        to_city_id='2060000',
-        date=datetime.fromisoformat('2024-01-13T00:00:00')
-    )
-    from pprint import pprint
-    for t in data:
-        print(t)
+
+    # data = await parser.get_trains(
+    #     from_city_id='2060600',
+    #     to_city_id='2060000',
+    #     date=datetime.fromisoformat('2024-01-13T00:00:00')
+    # )
+    # from pprint import pprint
+    # for t in data:
+    #     print(t)
     await parser.close_session()
 
 

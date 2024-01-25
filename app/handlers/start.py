@@ -22,6 +22,8 @@ router = Router()
 @router.callback_query(F.data == 'start', SubscriptionFilter(checking_for_lack=True))
 @router.message(Command('start'), SubscriptionFilter(checking_for_lack=True))
 async def start_without_subscription(query: Union[Message, CallbackQuery], state: FSMContext):
+    await state.set_state(None)
+
     text = (
 '''
 🚅 Приветствуем вас в боте по поиску/отслеживанию билетов РЖД
@@ -56,6 +58,8 @@ async def start_with_subscription(
         state: FSMContext,
         session: AsyncSession
 ):
+    await state.set_state(None)
+
     tracking_manager = TrackingManager(session=session)
     user_trackings = await tracking_manager.get_user_trackings(user_id=current_user.id, only_active=True)
     text = (

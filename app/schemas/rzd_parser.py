@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 class City(BaseModel):
     name: str
     region: str
-    train_code: str = Field(alias='expressCode')
+    station_code: str = Field(alias='expressCode')
 
 
 class Train(BaseModel):

@@ -10,6 +10,7 @@ from handlers.invoices import router as invoices_router
 from handlers.trackings.creating_trackings import router as creating_trackings_router
 from middlewares.session_middleware import SQLAlchemySessionMiddleware
 from middlewares.user_middleware import UserMiddleware
+from utils.rzd_parser import RZDParser
 
 logger = logging.getLogger(__name__)
 
@@ -44,11 +45,15 @@ async def main():
     bot = Bot(token=config.tg_bot.token, parse_mode='HTML')
     dp = Dispatcher(storage=storage)
 
+    rzd_parser = RZDParser()
+
     setup_middlewares(dp)
     setup_routers(dp)
 
-    await dp.start_polling(bot, config=config)
-
+    try:
+        await dp.start_polling(bot, config=config, rzd_parser=rzd_parser)
+    finally:
+        await rzd_parser.close_session()
 
 if __name__ == '__main__':
     asyncio.run(main())
