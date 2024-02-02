@@ -1,5 +1,5 @@
 import datetime
-from typing import Optional
+from typing import Optional, Union
 from pydantic import BaseModel
 
 
@@ -13,7 +13,7 @@ class TrackingCreateSchema(BaseModel):
     to_city_id: str
 
     date: datetime.date
-    max_price: Optional[int] = None
+    max_price: Optional[Union[int, float]] = None
 
 
 class TrackingUpdateSchema(BaseModel):
@@ -24,7 +24,7 @@ class TrackingUpdateSchema(BaseModel):
     to_city_id: Optional[str] = None
 
     date: Optional[datetime.date] = None
-    max_price: Optional[int] = None
+    max_price: Optional[Union[int, float]] = None
 
     first_notification_sent_at: Optional[datetime.datetime] = None
 

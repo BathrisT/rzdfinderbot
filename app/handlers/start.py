@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 
 
 from cruds.trackings import TrackingManager
+from filters.start_args_filter import StartArgsFilter
 from filters.subscription_filter import SubscriptionFilter
 
 from keyboards.start import start_keyboard_without_subscription, start_keyboard_with_subscription
@@ -20,7 +21,7 @@ router = Router()
 
 
 @router.callback_query(F.data == 'start', SubscriptionFilter(checking_for_lack=True))
-@router.message(Command('start'), SubscriptionFilter(checking_for_lack=True))
+@router.message(Command('start'), StartArgsFilter(finding_startswith=None), SubscriptionFilter(checking_for_lack=True))
 async def start_without_subscription(query: Union[Message, CallbackQuery], state: FSMContext):
     await state.set_state(None)
 
@@ -51,7 +52,7 @@ async def start_without_subscription(query: Union[Message, CallbackQuery], state
     )
 
 @router.callback_query(F.data == 'start', SubscriptionFilter(checking_for_lack=False))
-@router.message(Command('start'), SubscriptionFilter(checking_for_lack=False))
+@router.message(Command('start'), StartArgsFilter(finding_startswith=None), SubscriptionFilter(checking_for_lack=False))
 async def start_with_subscription(
         query: Union[Message, CallbackQuery],
         current_user: UserModel,

@@ -8,6 +8,9 @@ from config import get_config
 from handlers.start import router as start_router
 from handlers.invoices import router as invoices_router
 from handlers.trackings.creating_trackings import router as creating_trackings_router
+from handlers.trackings.editing_tracking import router as editing_tracking_router
+from handlers.trackings.tracking_list import router as tracking_list_router
+from utils.paginator.paginator import router as paginator_router
 from middlewares.session_middleware import SQLAlchemySessionMiddleware
 from middlewares.user_middleware import UserMiddleware
 from utils.rzd_parser import RZDParser
@@ -26,8 +29,13 @@ def setup_middlewares(dp: Dispatcher):
 
 def setup_routers(dp: Dispatcher):
     dp.include_router(start_router)
+    dp.include_router(paginator_router)
+
     dp.include_router(invoices_router)
     dp.include_router(creating_trackings_router)
+    dp.include_router(editing_tracking_router)
+    dp.include_router(tracking_list_router)
+
 
 
 async def main():

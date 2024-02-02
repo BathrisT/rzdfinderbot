@@ -4,11 +4,12 @@ from typing import Union
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, Message
 from aiogram.fsm.context import FSMContext
-from aiogram.filters.state import StateFilter
+from aiogram.filters import StateFilter, CommandObject, Command
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from config import Config
 from cruds.trackings import TrackingManager
+from filters.start_args_filter import StartArgsFilter
 from handlers.trackings.editing_tracking import send_tracking_menu
 from keyboards.trackings import start_create_tracking_from_scratch_kb, skip_max_price_kb
 from models.users import UserModel
@@ -61,7 +62,7 @@ async def start_create_tracking_with_existing_trackings(
             f'<b>Куда:</b> {tracking.to_city_name}\n'
         )
         if tracking.max_price:
-            text += f'<b>Цена до:</b> {tracking.max_price}₽\n'
+            text += '<b>Цена до:</b> {:.2f}₽\n'.format(tracking.max_price)
 
         if len(added_trackings) == 4:
             break
@@ -80,6 +81,49 @@ async def start_create_tracking_with_existing_trackings(
         messages=[sent_message],
         delete_prev_messages=True
     )
+
+@router.message(Command('start'), StartArgsFilter(finding_startswith='tracking_copy_'))
+async def new_tracking_from_other(
+        message: Message,
+        command: CommandObject,
+        current_user: UserModel,
+        state: FSMContext,
+        config: Config,
+        session: AsyncSession
+):
+    await state.set_state(None)
+
+    tracking_id = int(command.args.split('_')[-1])
+
+    tracking_manager = TrackingManager(session=session)
+    tracking = await tracking_manager.get(obj_id=tracking_id)
+
+    tracking_data = {
+        'from_city_name': tracking.from_city_name,
+        'from_city_id': tracking.from_city_id,
+        'to_city_name': tracking.to_city_name,
+        'to_city_id': tracking.to_city_id,
+        'date': None,
+        'max_price': float(tracking.max_price) if tracking.max_price else None
+    }
+
+    state_data = await state.get_data()
+    state_data['tracking_data'] = tracking_data
+    await state.set_data(state_data)
+
+    sent_message = await send_tracking_menu(
+        user=message.from_user,
+        bot=message.bot,
+        tracking_data=tracking_data
+    )
+
+    await add_messages_in_state_to_delete(
+        query=message,
+        state=state,
+        messages=[sent_message],
+        delete_prev_messages=True
+    )
+
 
 
 def _get_current_stage_text(current_stage: int):
@@ -369,4 +413,4 @@ async def handle_max_price(
         delete_prev_messages=True
     )
 
-    await state.set_state(None)  # TODO: поставить штейт редактирования
+    await state.set_state(None)
