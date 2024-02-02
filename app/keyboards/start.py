@@ -1,14 +1,18 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 
-def start_keyboard_without_subscription() -> InlineKeyboardMarkup:
+def start_keyboard_without_subscription(
+        reviews_link: str,
+        channel_link: str,
+        support_link: str
+) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text='💳 Оплатить подписку', callback_data='create_invoice')],
         [
-            InlineKeyboardButton(text='🗂 Отзывы', url='https://t.me/folkross'), # TODO: ссылки брать из конфига
-            InlineKeyboardButton(text='📗 Канал', url='https://t.me/folkross')   # TODO: ссылки брать из конфига
+            InlineKeyboardButton(text='🗂 Отзывы', url=reviews_link),
+            InlineKeyboardButton(text='📗 Канал', url=channel_link)
         ],
-        [InlineKeyboardButton(text='🧑‍💻 Поддержка', url='https://t.me/folkross')]   # TODO: ссылки брать из конфига
+        [InlineKeyboardButton(text='🧑‍💻 Поддержка', url=support_link)]
     ])
 
 def start_keyboard_with_subscription() -> InlineKeyboardMarkup:

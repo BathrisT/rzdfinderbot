@@ -7,6 +7,7 @@ class City(BaseModel):
     name: str
     region: str
     station_code: str = Field(alias='expressCode')
+    site_code: str = Field(alias='busCode')
 
 
 class Train(BaseModel):

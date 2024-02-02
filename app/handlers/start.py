@@ -8,7 +8,7 @@ from aiogram.types.callback_query import CallbackQuery
 from aiogram.types.message import Message
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
-
+from config import Config
 from cruds.trackings import TrackingManager
 from filters.start_args_filter import StartArgsFilter
 from filters.subscription_filter import SubscriptionFilter
@@ -22,7 +22,11 @@ router = Router()
 
 @router.callback_query(F.data == 'start', SubscriptionFilter(checking_for_lack=True))
 @router.message(Command('start'), StartArgsFilter(finding_startswith=None), SubscriptionFilter(checking_for_lack=True))
-async def start_without_subscription(query: Union[Message, CallbackQuery], state: FSMContext):
+async def start_without_subscription(
+        query: Union[Message, CallbackQuery],
+        state: FSMContext,
+        config: Config
+):
     await state.set_state(None)
 
     text = (
@@ -42,7 +46,11 @@ async def start_without_subscription(query: Union[Message, CallbackQuery], state
         chat_id=query.from_user.id,
         text=text,
         parse_mode='HTML',
-        reply_markup=start_keyboard_without_subscription(),
+        reply_markup=start_keyboard_without_subscription(
+            reviews_link=config.links.reviews_link,
+            channel_link=config.links.channel_link,
+            support_link=config.links.support_link,
+        ),
         disable_web_page_preview=True
     )
     await add_messages_in_state_to_delete(
@@ -57,7 +65,8 @@ async def start_with_subscription(
         query: Union[Message, CallbackQuery],
         current_user: UserModel,
         state: FSMContext,
-        session: AsyncSession
+        session: AsyncSession,
+        config: Config
 ):
     await state.set_state(None)
 
@@ -76,8 +85,8 @@ f'''
 🗂 <b>Текущие активные отслеживания:</b> {len(user_trackings)} шт
 🎫 <b>Подписка оплачена до:</b> {current_user.subscription_expires_at.strftime('%d.%m.%Y %H:%M')}
 
-<a href='https://t.me/folkross'>Отзывы</a> | <a href='https://t.me/folkross'>Канал</a> | <a href='https://t.me/folkross'>Поддержка</a>
-'''  # TODO: ссылки брать из конфига
+<a href='{config.links.reviews_link}'>Отзывы</a> | <a href='{config.links.channel_link}'>Канал</a> | <a href='{config.links.support_link}'>Поддержка</a>
+'''
     )
     sent_message = await query.bot.send_message(
         chat_id=query.from_user.id,

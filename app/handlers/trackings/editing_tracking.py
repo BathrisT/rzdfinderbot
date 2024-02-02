@@ -9,15 +9,15 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from config import Config
 from cruds.trackings import TrackingManager
+from keyboards.start import return_to_start_keyboard
 from keyboards.trackings import start_create_tracking_from_scratch_kb, skip_max_price_kb, edit_tracking_kb, \
-    back_to_tracking_kb, edit_max_price_kb
+    back_to_tracking_kb, edit_max_price_kb, seats_found_kb
 from models.users import UserModel
 from schemas.trackings import TrackingCreateSchema
 from states.editing_tracking import EditingTracking
 from utils.add_messages_in_state_to_delete import add_messages_in_state_to_delete
 from utils.rzd_parser import RZDParser
 
-# TODO: повесить фильтр, что чел оплатил подписку
 router = Router()
 
 async def send_tracking_menu(
@@ -259,7 +259,7 @@ async def handle_edit_date(
         )
         return
 
-    # Проверка на то, что дата ещё не прошла  # TODO: проверить кейс с сегодня/вчера
+    # Проверка на то, что дата ещё не прошла
     if (date + datetime.timedelta(days=1)) < datetime.datetime.utcnow():
         text = (
             '<b>Вы указали дату, которая уже прошла.</b> Пожалуйста, укажите будущую дату для отслеживания\n'
@@ -399,7 +399,8 @@ async def save_tracking(
         current_user: UserModel,
         state: FSMContext,
         config: Config,
-        session: AsyncSession
+        session: AsyncSession,
+        rzd_parser: RZDParser
 ):
     tracking_data = (await state.get_data())['tracking_data']
     if tracking_data['date'] is None:
@@ -409,14 +410,95 @@ async def save_tracking(
         )
         return
 
-    # TODO: проверить наличие билетов. Если их много (определить что такое много),
+    # Проверка наличие билетов. Если их много (определить что такое много),
     #  то выводим ссылку на покупку и не ставим отслеживание
+    sent_message = await send_tracking_menu(
+        user=callback.from_user,
+        bot=callback.bot,
+        tracking_data=tracking_data,
+        additional_text='<b>ℹ️ Проверяем данные...</b>'
+    )
+    await add_messages_in_state_to_delete(
+        query=callback,
+        state=state,
+        messages=[sent_message],
+        delete_prev_messages=True
+    )
+
+    await rzd_parser.refresh_session()
+    trains_on_this_route = await rzd_parser.get_trains(
+        from_city_id=tracking_data['from_city_id'],
+        to_city_id=tracking_data['to_city_id'],
+        date=datetime.date.fromisoformat(tracking_data['date'])
+    )
+    specific_trains_found = False
+
+    _check_price_func = lambda min_price: (
+        tracking_data['max_price'] is None or min_price <= tracking_data['max_price']
+    )
+    for train in trains_on_this_route:
+        # train.sw_seats, train.cupe_seats, train.plaz_seats, train.sid_seats
+        if train.sw_seats > 1 and _check_price_func(train.sw_min_price):
+            specific_trains_found = True
+
+        if train.cupe_seats > 1 and _check_price_func(train.cupe_min_price):
+            specific_trains_found = True
+
+        if train.plaz_seats > 1 and _check_price_func(train.plaz_min_price):
+            specific_trains_found = True
+
+        if train.sid_min_price > 1 and _check_price_func(train.sid_min_price):
+            specific_trains_found = True
+
+    if specific_trains_found:
+        city_from = (await rzd_parser.get_cities_by_query(tracking_data['from_city_name']))[0]
+        city_to = (await rzd_parser.get_cities_by_query(tracking_data['to_city_name']))[0]
+        url = (
+            f'https://ticket.rzd.ru/searchresults/v/1/{city_from.site_code}/{city_to.site_code}/{tracking_data["date"]}'
+        )
+        text = (
+            '<b>✅ Найдено больше одного места по вашему запросу,</b> нажмите на кнопку ниже чтобы перейти на сайт РЖД'
+            '\n\n'
+            '<i>Отслеживание, из-за текущего наличия мест, не создано</i>'
+        )
+        sent_message = await callback.bot.send_message(
+            chat_id=callback.from_user.id,
+            text=text,
+            parse_mode='HTML',
+            reply_markup=seats_found_kb(rzd_url=url)
+        )
+        await add_messages_in_state_to_delete(
+            query=callback,
+            state=state,
+            messages=[sent_message],
+            delete_prev_messages=True
+        )
+        return
+
+    # Сохраняем отслеживание
 
     tracking_manager = TrackingManager(session=session)
 
-    saved_text: str = None
-
+    # Если отслеживание новое
     if 'tracking_id' not in tracking_data:
+        # проверка на то, что ещё не существует аналогичного отслеживания
+        repeated_tracking = await tracking_manager.get_by_unique_value(
+            user_id=current_user.id,
+            from_city_name=tracking_data['from_city_name'],
+            from_city_id=tracking_data['from_city_id'],
+            to_city_name=tracking_data['to_city_name'],
+            to_city_id=tracking_data['to_city_id'],
+            date=datetime.date.fromisoformat(tracking_data['date']),
+            max_price=tracking_data.get('max_price'),
+            is_finished=False
+        )
+        if repeated_tracking is not None:
+            await callback.answer(
+                text=f'❌ Активное отслеживание с такими данными уже существует. Вот его номер: #{repeated_tracking.id}',
+                show_alert=True
+            )
+            return
+
         tracking = await tracking_manager.create(TrackingCreateSchema(
             user_id=current_user.id,
             from_city_name=tracking_data['from_city_name'],
@@ -429,6 +511,11 @@ async def save_tracking(
         tracking_data['tracking_id'] = tracking.id
         saved_text = '<b>✅ Отслеживание успешно создано</b>'
     else:
+        # проверка на то, что отслеживание принадлежит этому юзеру
+        this_tracking = await tracking_manager.get(tracking_data['tracking_id'])
+        if current_user.id != this_tracking.user_id:
+            return
+
         await tracking_manager.update(
             obj_id=tracking_data['tracking_id'],
             obj_in=TrackingCreateSchema(
@@ -454,6 +541,37 @@ async def save_tracking(
         bot=callback.bot,
         tracking_data=tracking_data,
         additional_text=saved_text
+    )
+    await add_messages_in_state_to_delete(
+        query=callback,
+        state=state,
+        messages=[sent_message],
+        delete_prev_messages=True
+    )
+
+@router.callback_query(F.data == 'finish_tracking')
+async def finish_tracking(
+        callback: CallbackQuery,
+        current_user: UserModel,
+        state: FSMContext,
+        session: AsyncSession
+):
+    tracking_manager = TrackingManager(session=session)
+    tracking_data = (await state.get_data())['tracking_data']
+
+    this_tracking = await tracking_manager.get(tracking_data['tracking_id'])
+    if current_user.id != this_tracking.user_id:
+        return
+
+    await tracking_manager.delete(tracking_data['tracking_id'])
+    await session.commit()
+
+    text = f'📕 Отслеживание #{this_tracking.id} успешно удалено'
+    sent_message = await callback.bot.send_message(
+        chat_id=callback.from_user.id,
+        text=text,
+        parse_mode='HTML',
+        reply_markup=return_to_start_keyboard()
     )
     await add_messages_in_state_to_delete(
         query=callback,

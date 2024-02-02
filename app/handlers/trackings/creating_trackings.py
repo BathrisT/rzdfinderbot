@@ -9,20 +9,19 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from config import Config
 from cruds.trackings import TrackingManager
+from filters.at_least_one_tracking_exists_filter import AtLeastOneTrackingExistsFilter
 from filters.start_args_filter import StartArgsFilter
 from handlers.trackings.editing_tracking import send_tracking_menu
-from keyboards.trackings import start_create_tracking_from_scratch_kb, skip_max_price_kb
+from keyboards.trackings import start_create_tracking_from_scratch_kb, skip_max_price_kb, go_to_current_trackings_kb
 from models.users import UserModel
 from states.creating_tracking import CreatingTracking
 from utils.add_messages_in_state_to_delete import add_messages_in_state_to_delete
 from utils.rzd_parser import RZDParser
 
-# TODO: повесить фильтр, что чел оплатил подписку
 router = Router()
 
 
-# TODO: фильтр на то, что у юзера есть хотя бы одно отслеживание в бд
-@router.callback_query(F.data == 'create_tracking')
+@router.callback_query(F.data == 'create_tracking', AtLeastOneTrackingExistsFilter())
 async def start_create_tracking_with_existing_trackings(
         callback: CallbackQuery,
         current_user: UserModel,
@@ -33,7 +32,28 @@ async def start_create_tracking_with_existing_trackings(
     tracking_manager = TrackingManager(session=session)
     user_trackings = await tracking_manager.get_user_trackings(user_id=callback.from_user.id, only_active=False)
 
-    #  TODO: проверка на количество уже созданных отслеживаний. Если уже больше 10, то нельзя
+    #  проверка на количество уже созданных отслеживаний. Если уже больше 10, то нельзя
+    if len(list(filter(lambda tracking: not tracking.is_finished, user_trackings))) >= 10:
+        text = (
+            '❌ Вы уже создали максимальное количество активных отслеживаний. '
+            '<b>Удалите одно из текущих отслеживаний</b>, чтобы создать новое'
+        )
+
+        sent_message = await callback.bot.send_message(
+            chat_id=callback.from_user.id,
+            text=text,
+            parse_mode='HTML',
+            reply_markup=go_to_current_trackings_kb(),
+            disable_web_page_preview=True
+        )
+
+        await add_messages_in_state_to_delete(
+            query=callback,
+            state=state,
+            messages=[sent_message],
+            delete_prev_messages=True
+        )
+        return
 
     text = (
         f"Вы можете выбрать отслеживание из предыдущих, затем его отредактировать. "
@@ -82,6 +102,7 @@ async def start_create_tracking_with_existing_trackings(
         delete_prev_messages=True
     )
 
+
 @router.message(Command('start'), StartArgsFilter(finding_startswith='tracking_copy_'))
 async def new_tracking_from_other(
         message: Message,
@@ -125,7 +146,6 @@ async def new_tracking_from_other(
     )
 
 
-
 def _get_current_stage_text(current_stage: int):
     return (
         f'———\n'
@@ -133,6 +153,7 @@ def _get_current_stage_text(current_stage: int):
     )
 
 
+@router.callback_query(F.data == 'create_tracking', AtLeastOneTrackingExistsFilter(check_for_lack=True))
 @router.callback_query(F.data == 'create_tracking_from_scratch')
 async def start_create_tracking_from_scratch(
         callback: CallbackQuery,
@@ -296,7 +317,7 @@ async def handle_date(
         )
         return
 
-    # Проверка на то, что дата ещё не прошла  # TODO: проверить кейс с сегодня/вчера
+    # Проверка на то, что дата ещё не прошла
     if (date + datetime.timedelta(days=1)) < datetime.datetime.utcnow():
         text = (
             '<b>Вы указали дату, которая уже прошла.</b> Пожалуйста, укажите будущую дату для отслеживания\n'

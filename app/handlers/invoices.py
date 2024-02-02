@@ -6,12 +6,16 @@ from aiogram.types.message import Message
 from aiogram.types.callback_query import CallbackQuery
 from aiogram.types.labeled_price import LabeledPrice
 from aiogram.types.pre_checkout_query import PreCheckoutQuery
+
+from config import Config
+from cruds.invoices import InvoiceManager
 from cruds.users import UserManager
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from keyboards.invoices import create_invoice_keyboard
 from keyboards.start import return_to_start_keyboard
 from models.users import UserModel
+from schemas.invoices import InvoiceCreateSchema
 from schemas.users import UserUpdateSchema
 from utils.delete_state_messages import delete_state_messages
 
@@ -19,12 +23,17 @@ router = Router()
 
 
 @router.callback_query(F.data == 'create_invoice')
-async def create_invoice(callback: CallbackQuery, state: FSMContext):
+async def create_invoice(
+        callback: CallbackQuery,
+        state: FSMContext,
+        session: AsyncSession,
+        config: Config
+):
     invoice_link = await callback.bot.create_invoice_link(
         title='🚅 Оплата подписки на отслеживание билетов РЖД',
         description='30 дней',
         payload=f'{callback.from_user.id}_1month_{callback.message.message_id}',
-        provider_token='381764678:TEST:75410',  # TODO: брать из конфига
+        provider_token=config.payment.provider_token,
         currency='RUB',
         prices=[LabeledPrice(label='Подписка на 30 дней', amount='10000')]
     )
@@ -37,11 +46,16 @@ async def create_invoice(callback: CallbackQuery, state: FSMContext):
         reply_markup=create_invoice_keyboard(invoice_link=invoice_link)
     )
 
-    #  Заносим созданный счет в бд
-    #
-    #  invoice_crud = InvoiceManager(session=session)
-    #  await invoice_crud.create(InvoiceCreateSchema())
-    #  await session.commit()
+    # Заносим созданный счет в бд
+    # invoice_crud = InvoiceManager(session=session)
+    # await invoice_crud.create(InvoiceCreateSchema(
+    #     user_id=callback.from_user.id,
+    #     is_payment_successful=False,
+    #     payment_status='created',
+    #     payment_comment='Создана заявка на оплату'
+    # ))
+
+    await session.commit()
 
     await delete_state_messages(
         query=callback,
@@ -80,6 +94,13 @@ async def handle_successful_payment(
         obj_id=current_user.id,
         obj_in=UserUpdateSchema(subscription_expires_at=new_subscription_date)
     )
+
+    # Обновляем payment в бд
+    # invoice_crud = InvoiceManager(session=session)
+    # await invoice_crud.update(
+    #
+    # )
+
     await session.commit()
 
     # Удаляем сообщение со счетом для оплаты

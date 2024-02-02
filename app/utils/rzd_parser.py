@@ -45,8 +45,9 @@ class RZDParser:
         response_data = response.json()
         if len(response_data) == 0:
             return []
+        #print(response_data)
         cities = response_data['city']
-        return [City.model_validate(city) for city in cities if 'expressCode' in city]
+        return [City.model_validate(city) for city in cities if 'expressCode' in city and 'busCode' in city]
 
     async def get_trains(
             self,
@@ -69,7 +70,7 @@ class RZDParser:
             }
         )
         data = response.json()
-        print(data)
+        #print(data)
 
         trains: list[Train] = []
 

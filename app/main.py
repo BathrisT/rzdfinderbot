@@ -7,9 +7,7 @@ from aiogram.fsm.storage.redis import RedisStorage, Redis
 from config import get_config
 from handlers.start import router as start_router
 from handlers.invoices import router as invoices_router
-from handlers.trackings.creating_trackings import router as creating_trackings_router
-from handlers.trackings.editing_tracking import router as editing_tracking_router
-from handlers.trackings.tracking_list import router as tracking_list_router
+from handlers.trackings import router as trackings_router
 from utils.paginator.paginator import router as paginator_router
 from middlewares.session_middleware import SQLAlchemySessionMiddleware
 from middlewares.user_middleware import UserMiddleware
@@ -25,6 +23,7 @@ def setup_middlewares(dp: Dispatcher):
     # Мидлварь которая добавляет сессию бд в контекст
     dp.message.middleware.register(SQLAlchemySessionMiddleware())
     dp.callback_query.middleware.register(SQLAlchemySessionMiddleware())
+    # TODO: # Добавить мидлварь ржд парсера
 
 
 def setup_routers(dp: Dispatcher):
@@ -32,10 +31,7 @@ def setup_routers(dp: Dispatcher):
     dp.include_router(paginator_router)
 
     dp.include_router(invoices_router)
-    dp.include_router(creating_trackings_router)
-    dp.include_router(editing_tracking_router)
-    dp.include_router(tracking_list_router)
-
+    dp.include_router(trackings_router)
 
 
 async def main():
@@ -53,6 +49,7 @@ async def main():
     bot = Bot(token=config.tg_bot.token, parse_mode='HTML')
     dp = Dispatcher(storage=storage)
 
+    # TODO: # Добавить мидлварь ржд парсера
     rzd_parser = RZDParser()
 
     setup_middlewares(dp)
@@ -62,6 +59,7 @@ async def main():
         await dp.start_polling(bot, config=config, rzd_parser=rzd_parser)
     finally:
         await rzd_parser.close_session()
+
 
 if __name__ == '__main__':
     asyncio.run(main())

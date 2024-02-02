@@ -22,11 +22,20 @@ class TgBot(BaseModel):
     token: str
     username: str
 
+class Links(BaseModel):
+    reviews_link: str
+    channel_link: str
+    support_link: str
+
+class Payment(BaseModel):
+    provider_token: str
 
 class Config(BaseSettings):
     database: DataBase
     redis: Redis
     tg_bot: TgBot
+    links: Links
+    payment: Payment
 
     model_config = SettingsConfigDict(
         env_file=('.env', '../.env'),

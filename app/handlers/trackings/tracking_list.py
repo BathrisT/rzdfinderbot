@@ -13,14 +13,14 @@ from models.trackings import TrackingModel
 from utils.add_messages_in_state_to_delete import add_messages_in_state_to_delete
 from utils.paginator.paginator import Paginator
 
-# TODO: повесить фильтр, что чел оплатил подписку
+
 router = Router()
 
 def get_row_text_from_tracking_object(tracking: TrackingModel, index: int, tg_bot_username: str):
     text = (
         '\n'
         f'<a href="https://t.me/{tg_bot_username}?start=tracking_open_{tracking.id}">'
-        f'🚅 Отслеживание на {tracking.date.strftime("%d.%m.%Y")}: </a>\n'
+        f'🚅 Отслеживание #{tracking.id} на {tracking.date.strftime("%d.%m.%Y")}: </a>\n'
         f'<b>Откуда:</b> {tracking.from_city_name}\n'
         f'<b>Куда:</b> {tracking.to_city_name}'
     )
