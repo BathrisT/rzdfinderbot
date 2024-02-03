@@ -70,5 +70,6 @@ def get_ending_kb_elements_for_tracking_list():
 def seats_found_kb(rzd_url: str):
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text='▶️ Перейти на сайт РЖД', url=rzd_url)],
+        [InlineKeyboardButton(text='🔙 Вернуться к отслеживанию', callback_data='edit_tracking')],
         [InlineKeyboardButton(text='🔙 Вернуться в меню', callback_data='start')]
     ])

@@ -8,9 +8,11 @@ class TrackingCreateSchema(BaseModel):
 
     from_city_name: str
     from_city_id: str
+    from_city_site_code: str = None
 
     to_city_name: str
     to_city_id: str
+    to_city_site_code: str = None
 
     date: datetime.date
     max_price: Optional[Union[int, float]] = None
@@ -19,9 +21,11 @@ class TrackingCreateSchema(BaseModel):
 class TrackingUpdateSchema(BaseModel):
     from_city_name: Optional[str] = None
     from_city_id: Optional[str] = None
+    from_city_site_code: Optional[str] = None
 
     to_city_name: Optional[str] = None
     to_city_id: Optional[str] = None
+    to_city_site_code: Optional[str] = None
 
     date: Optional[datetime.date] = None
     max_price: Optional[Union[int, float]] = None

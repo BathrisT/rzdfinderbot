@@ -18,9 +18,11 @@ class TrackingModel(Base):
 
     from_city_name: Mapped[str] = mapped_column()
     from_city_id: Mapped[str] = mapped_column()
+    from_city_site_code: Mapped[str] = mapped_column()
 
     to_city_name: Mapped[str] = mapped_column()
     to_city_id: Mapped[str] = mapped_column()
+    to_city_site_code: Mapped[str] = mapped_column()
 
     date: Mapped[datetime.date] = mapped_column()
     max_price: Mapped[Optional[int]] = mapped_column(DECIMAL, nullable=True)

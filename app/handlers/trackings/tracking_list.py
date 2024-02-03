@@ -59,7 +59,7 @@ async def tracking_list(
 
     text = (
         f"Вот список ваших <b>активных отслеживаний</b>:\n\n"
-        f"<i>ℹ️ для того, чтобы скопировать предыдущее отслеживание, нажмите на подзаголовок</i>\n"
+        f"<i>ℹ️ для того, чтобы открыть полную информацию об отслеживании, нажмите на подзаголовок</i>\n"
         "{rows_text}\n"
         "<i>Страница {page_number} из {pages_count}</i>"
     )
@@ -102,8 +102,10 @@ async def open_specific_tracking(
         'tracking_id': tracking_id,
         'from_city_name': tracking.from_city_name,
         'from_city_id': tracking.from_city_id,
+        'from_city_site_code': tracking.from_city_site_code,
         'to_city_name': tracking.to_city_name,
         'to_city_id': tracking.to_city_id,
+        'to_city_site_code': tracking.to_city_site_code,
         'date': tracking.date.isoformat(),
         'max_price': float(tracking.max_price) if tracking.max_price is not None else None
     }

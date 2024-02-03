@@ -19,3 +19,10 @@ class TrackingManager(BaseManager[TrackingModel, TrackingCreateSchema, TrackingU
             filters.append(not_(TrackingModel.is_finished))
         query = select(TrackingModel).where(*filters).order_by(TrackingModel.created_at.desc())
         return (await self._session.scalars(query)).all()
+
+    async def get_all_tracking(self, only_active=True) -> list[TrackingModel]:
+        query = select(TrackingModel)
+        if only_active:
+            query = query.where(not_(TrackingModel.is_finished))
+        query = query.order_by(TrackingModel.created_at.desc())
+        return (await self._session.scalars(query)).all()

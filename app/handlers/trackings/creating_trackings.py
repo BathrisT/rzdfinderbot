@@ -122,8 +122,10 @@ async def new_tracking_from_other(
     tracking_data = {
         'from_city_name': tracking.from_city_name,
         'from_city_id': tracking.from_city_id,
+        'from_city_site_code': tracking.from_city_site_code,
         'to_city_name': tracking.to_city_name,
         'to_city_id': tracking.to_city_id,
+        'to_city_site_code': tracking.to_city_site_code,
         'date': None,
         'max_price': float(tracking.max_price) if tracking.max_price else None
     }
@@ -182,9 +184,11 @@ async def start_create_tracking_from_scratch(
         'tracking_data': {
             'from_city_name': None,
             'from_city_id': None,
+            'from_city_site_code': None,
 
             'to_city_name': None,
             'to_city_id': None,
+            'to_city_site_code': None,
 
             'date': None,
             'max_price': None
@@ -240,6 +244,7 @@ async def handle_city(
         tracking_data.update({
             'from_city_name': selected_city.name,
             'from_city_id': selected_city.station_code,
+            'from_city_site_code': selected_city.site_code
         })
     else:
         text = (
@@ -253,6 +258,7 @@ async def handle_city(
         tracking_data.update({
             'to_city_name': selected_city.name,
             'to_city_id': selected_city.station_code,
+            'to_city_site_code': selected_city.site_code
         })
 
     sent_message = await message.bot.send_message(

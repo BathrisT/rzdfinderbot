@@ -13,9 +13,11 @@ from keyboards.start import return_to_start_keyboard
 from keyboards.trackings import start_create_tracking_from_scratch_kb, skip_max_price_kb, edit_tracking_kb, \
     back_to_tracking_kb, edit_max_price_kb, seats_found_kb
 from models.users import UserModel
-from schemas.trackings import TrackingCreateSchema
+from schemas.trackings import TrackingCreateSchema, TrackingUpdateSchema
 from states.editing_tracking import EditingTracking
 from utils.add_messages_in_state_to_delete import add_messages_in_state_to_delete
+from utils.filter_trains import filter_trains
+from utils.rzd_links_generator import create_url_to_trains
 from utils.rzd_parser import RZDParser
 
 router = Router()
@@ -30,12 +32,14 @@ async def send_tracking_menu(
     """
     tracking_data должна выглядеть так:
 
-    {'from_city_name': 'Киров', 'from_city_id': '2060600', 'to_city_name': 'Москва', 'to_city_id': '2000000',
+    {'from_city_name': 'Киров', 'from_city_id': '2060600', 'from_city_site_code': 'awd',
+    'to_city_name': 'Москва', 'to_city_id': '2000000', 'to_city_site_code': 'awd1',
     'date': '2024-02-28', 'max_price': 1300.0}
 
     или
 
-    {'from_city_name': 'Киров', 'from_city_id': '2060600', 'to_city_name': 'Москва', 'to_city_id': '2000000',
+    'from_city_name': 'Киров', 'from_city_id': '2060600', 'from_city_site_code': 'awd',
+    'to_city_name': 'Москва', 'to_city_id': '2000000', 'to_city_site_code': 'awd1',
     'date': '2024-02-28', 'max_price': None, 'tracking_id': 12}
     """
 
@@ -43,9 +47,11 @@ async def send_tracking_menu(
 
     from_city_name = tracking_data['from_city_name']
     from_city_id = tracking_data['from_city_id']
+    from_city_site_code = tracking_data['from_city_site_code']
 
     to_city_name = tracking_data['to_city_name']
     to_city_id = tracking_data['to_city_id']
+    to_city_site_code = tracking_data['to_city_site_code']
 
     date = datetime.date.fromisoformat(tracking_data['date']) if tracking_data['date'] else None
     max_price = tracking_data['max_price']
@@ -170,11 +176,13 @@ async def handle_edit_city(
         tracking_data.update({
             'from_city_name': selected_city.name,
             'from_city_id': selected_city.station_code,
+            'from_city_site_code': selected_city.site_code
         })
     else:
         tracking_data.update({
             'to_city_name': selected_city.name,
             'to_city_id': selected_city.station_code,
+            'to_city_site_code': selected_city.site_code
         })
     await state.update_data({'tracking_data': tracking_data})
 
@@ -431,35 +439,20 @@ async def save_tracking(
         to_city_id=tracking_data['to_city_id'],
         date=datetime.date.fromisoformat(tracking_data['date'])
     )
-    specific_trains_found = False
-
-    _check_price_func = lambda min_price: (
-        tracking_data['max_price'] is None or min_price <= tracking_data['max_price']
+    specific_trains = filter_trains(
+        trains=trains_on_this_route,
+        max_price=tracking_data['max_price']
     )
-    for train in trains_on_this_route:
-        # train.sw_seats, train.cupe_seats, train.plaz_seats, train.sid_seats
-        if train.sw_seats > 1 and _check_price_func(train.sw_min_price):
-            specific_trains_found = True
-
-        if train.cupe_seats > 1 and _check_price_func(train.cupe_min_price):
-            specific_trains_found = True
-
-        if train.plaz_seats > 1 and _check_price_func(train.plaz_min_price):
-            specific_trains_found = True
-
-        if train.sid_min_price > 1 and _check_price_func(train.sid_min_price):
-            specific_trains_found = True
-
-    if specific_trains_found:
-        city_from = (await rzd_parser.get_cities_by_query(tracking_data['from_city_name']))[0]
-        city_to = (await rzd_parser.get_cities_by_query(tracking_data['to_city_name']))[0]
-        url = (
-            f'https://ticket.rzd.ru/searchresults/v/1/{city_from.site_code}/{city_to.site_code}/{tracking_data["date"]}'
+    if len(specific_trains) > 0:
+        url = create_url_to_trains(
+            from_city_site_code=tracking_data["from_city_site_code"],
+            to_city_site_code=tracking_data["to_city_site_code"],
+            date=tracking_data["date"]
         )
         text = (
             '<b>✅ Найдено больше одного места по вашему запросу,</b> нажмите на кнопку ниже чтобы перейти на сайт РЖД'
             '\n\n'
-            '<i>Отслеживание, из-за текущего наличия мест, не создано</i>'
+            '<i>Отслеживание, из-за текущего наличия мест, не сохранено</i>'
         )
         sent_message = await callback.bot.send_message(
             chat_id=callback.from_user.id,
@@ -480,22 +473,39 @@ async def save_tracking(
     tracking_manager = TrackingManager(session=session)
 
     # Если отслеживание новое
+
     if 'tracking_id' not in tracking_data:
         # проверка на то, что ещё не существует аналогичного отслеживания
         repeated_tracking = await tracking_manager.get_by_unique_value(
             user_id=current_user.id,
             from_city_name=tracking_data['from_city_name'],
             from_city_id=tracking_data['from_city_id'],
+            from_city_site_code=tracking_data['from_city_site_code'],
             to_city_name=tracking_data['to_city_name'],
             to_city_id=tracking_data['to_city_id'],
+            to_city_site_code=tracking_data['to_city_site_code'],
             date=datetime.date.fromisoformat(tracking_data['date']),
             max_price=tracking_data.get('max_price'),
             is_finished=False
         )
+
         if repeated_tracking is not None:
-            await callback.answer(
-                text=f'❌ Активное отслеживание с такими данными уже существует. Вот его номер: #{repeated_tracking.id}',
-                show_alert=True
+            sent_message = await send_tracking_menu(
+                user=callback.from_user,
+                bot=callback.bot,
+                tracking_data=tracking_data,
+                additional_text=f'<b>❌ Активное отслеживание с такими данными уже существует.</b>\n'
+                                f'<a href="'
+                                f'https://t.me/{config.tg_bot.username}?start=tracking_open_{repeated_tracking.id}'
+                                f'">'
+                                f'Вот его номер: #{repeated_tracking.id} (кликабельно)'
+                                f'</a>'
+            )
+            await add_messages_in_state_to_delete(
+                query=callback,
+                state=state,
+                messages=[sent_message],
+                delete_prev_messages=True
             )
             return
 
@@ -503,8 +513,10 @@ async def save_tracking(
             user_id=current_user.id,
             from_city_name=tracking_data['from_city_name'],
             from_city_id=tracking_data['from_city_id'],
+            from_city_site_code=tracking_data['from_city_site_code'],
             to_city_name=tracking_data['to_city_name'],
             to_city_id=tracking_data['to_city_id'],
+            to_city_site_code=tracking_data['to_city_site_code'],
             date=tracking_data['date'],
             max_price=tracking_data.get('max_price')
         ))
@@ -522,8 +534,10 @@ async def save_tracking(
                 user_id=current_user.id,
                 from_city_name=tracking_data['from_city_name'],
                 from_city_id=tracking_data['from_city_id'],
+                from_city_site_code=tracking_data['from_city_site_code'],
                 to_city_name=tracking_data['to_city_name'],
                 to_city_id=tracking_data['to_city_id'],
+                to_city_site_code=tracking_data['to_city_site_code'],
                 date=tracking_data['date'],
                 max_price=tracking_data.get('max_price')
             )
@@ -563,7 +577,10 @@ async def finish_tracking(
     if current_user.id != this_tracking.user_id:
         return
 
-    await tracking_manager.delete(tracking_data['tracking_id'])
+    await tracking_manager.update(
+        obj_id=tracking_data['tracking_id'],
+        obj_in=TrackingUpdateSchema(is_finished=True)
+    )
     await session.commit()
 
     text = f'📕 Отслеживание #{this_tracking.id} успешно удалено'
