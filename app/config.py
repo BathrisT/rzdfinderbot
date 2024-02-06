@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Union
 
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -30,12 +31,18 @@ class Links(BaseModel):
 class Payment(BaseModel):
     provider_token: str
 
+class ServiceNotifications(BaseModel):
+    bot_token: str
+    chat_id: Union[int, str]
+    project_name: str
+
 class Config(BaseSettings):
     database: DataBase
     redis: Redis
     tg_bot: TgBot
     links: Links
     payment: Payment
+    service_notifications: ServiceNotifications
 
     model_config = SettingsConfigDict(
         env_file=('.env', '../.env'),

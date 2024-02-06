@@ -73,3 +73,11 @@ def seats_found_kb(rzd_url: str):
         [InlineKeyboardButton(text='🔙 Вернуться к отслеживанию', callback_data='edit_tracking')],
         [InlineKeyboardButton(text='🔙 Вернуться в меню', callback_data='start')]
     ])
+
+def found_seats_notification_kb(
+        tracking_id: int
+):
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='🟢 Я успел взять билет', callback_data=f'success_notification_{tracking_id}')],
+        [InlineKeyboardButton(text='🔴 Я не смог взять билет', callback_data=f'failed_notification_{tracking_id}')]
+    ])

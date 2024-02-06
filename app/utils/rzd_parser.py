@@ -20,7 +20,8 @@ class RZDParser:
                 'Host': 'ticket.rzd.ru',
                 'Referer': 'https://ticket.rzd.ru'
             },
-            base_url='https://ticket.rzd.ru'
+            base_url='https://ticket.rzd.ru',
+            timeout=5
         )
 
     async def refresh_session(self):

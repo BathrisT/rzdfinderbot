@@ -59,6 +59,8 @@ async def start_without_subscription(
         messages=[sent_message]
     )
 
+# TODO: сделать хендлер, если у юзера есть неотмеченные нотификации,
+#  то отправляем информацию о них и об обязательности отметок
 @router.callback_query(F.data == 'start', SubscriptionFilter(checking_for_lack=False))
 @router.message(Command('start'), StartArgsFilter(finding_startswith=None), SubscriptionFilter(checking_for_lack=False))
 async def start_with_subscription(

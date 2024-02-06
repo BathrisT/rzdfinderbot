@@ -1,5 +1,5 @@
 import asyncio
-import logging
+import app_logger
 
 from aiogram import Dispatcher, Bot
 from aiogram.fsm.storage.redis import RedisStorage, Redis
