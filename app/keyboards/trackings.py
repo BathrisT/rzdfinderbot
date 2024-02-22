@@ -78,6 +78,6 @@ def found_seats_notification_kb(
         tracking_id: int
 ):
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text='🟢 Я успел взять билет', callback_data=f'success_notification_{tracking_id}')],
-        [InlineKeyboardButton(text='🔴 Я не смог взять билет', callback_data=f'failed_notification_{tracking_id}')]
+        [InlineKeyboardButton(text='🟢 Успешно', callback_data=f'success_notification_{tracking_id}'),
+        InlineKeyboardButton(text='❌ Не успел', callback_data=f'failed_notification_{tracking_id}')]
     ])

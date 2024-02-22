@@ -1,16 +1,18 @@
 import asyncio
 import datetime
-import app_logger
-import random
 import traceback
+from json import JSONDecodeError
 from queue import Queue
 
 from aiogram import Bot
 from httpx import TimeoutException
+from loguru import logger
 
-from config import Config
 from cruds.tracking_notifications import TrackingNotificationManager
+from cruds.trackings import TrackingManager
+from database import async_session_maker
 from keyboards.trackings import found_seats_notification_kb
+from models.trackings import TrackingModel
 from schemas.rzd_parser import Train
 from schemas.tracking_notifications import TrackingNotificationCreateSchema
 from schemas.trackings import TrackingUpdateSchema
@@ -18,13 +20,6 @@ from utils.filter_trains import filter_trains, check_min_price
 from utils.rzd_links_generator import create_url_to_trains
 from utils.rzd_parser import RZDParser
 from .exceptions import TrackingFinishedException
-from cruds.trackings import TrackingManager
-from database import async_session_maker
-from models.trackings import TrackingModel
-
-
-logger = logging.getLogger(__name__)
-
 
 
 # TODO: обработка ошибок  # class logging
@@ -38,6 +33,8 @@ class TrackingParser:
         self._limit_of_parallel_handlers = limit_of_parallel_handlers
         self._current_parallel_handlers = 0
         self._aiogram_bot = Bot(token=aiogram_bot_token)
+
+        self._connection_errors_counter = 0
 
     async def _get_tracking(
             self,
@@ -96,12 +93,11 @@ class TrackingParser:
         )
         text += (
             f'------\n'
-            f'❗️После удачной/неудачной покупки, <b>нажмите на одну из кнопок ниже.</b> '
+            f'❗️После удачной/неудачной покупки, <b>нажмите на одну из кнопок ниже</b>, в соответствии с тем, взяли вы билет или нет. '
             f'Если вы ничего не выберите, <b>отслеживание перестанет быть активным через '
             f'{str(deactivate_tracking_time).split(".")[0]}</b>'
         )
         return text
-
 
     async def _handle_tracking(
             self,
@@ -134,7 +130,8 @@ class TrackingParser:
             )
             notification_waited_flag = (
                     last_notification_by_tracking is None
-                    or (datetime.datetime.utcnow() - datetime.timedelta(minutes=5)) > last_notification_by_tracking.created_at
+                    or (datetime.datetime.utcnow() - datetime.timedelta(
+                minutes=5)) > last_notification_by_tracking.created_at
             )
             if notification_waited_flag and len(filtered_trains) > 0:
                 # Сохраняем информацию о первой нотификации об отслеживании
@@ -158,7 +155,7 @@ class TrackingParser:
                 ))
             await session.commit()
 
-        logging.debug(f'#{tracking.id} handled')
+        logger.debug(f'#{tracking.id} handled')
 
         await self._put_tracking(
             tracking=tracking,
@@ -179,20 +176,25 @@ class TrackingParser:
             )
         except TrackingFinishedException:
             pass
-        except TimeoutException as exc:
-            logger.error(f'TIMEOUT ERROR!!!: {exc}')
-        # TODO: Сделать обработку более частных ошибок + логгирование в txt/чат в тг
-        except Exception as e:
-            logger.error(traceback.format_exc())
+        except TimeoutException:
+            # Информацию о каждой ошибке подключения не присылаем
+            self._connection_errors_counter += 1
+            if self._connection_errors_counter == 10:
+                logger.error(f'Произошла ошибка подключения к серверу РЖД')
+                self._connection_errors_counter = 0
+        except JSONDecodeError as exc:
+            logger.error(f'Ошибка декодирования ответа от сервера: \n{exc.doc}')
+        except Exception:
+            logger.error(f'Произошла неизвестная ошибка:\n {traceback.format_exc()}')
         self._current_parallel_handlers -= 1
 
     async def start(self):
-        logging.info('Background TrackingParser started')
+        logger.info('Background TrackingParser started')
         queue_tracking_ids: Queue = Queue()  # Очередь, которая используется для обработки отслеживаний
         mapping_id_to_tracking: dict[int, TrackingModel] = dict()  # {12: TrackingModel()}
 
         while True:
-            logging.debug('Завершен круг очереди отслеживаний')
+            logger.debug('Завершен круг очереди отслеживаний')
             # Получаем все отслеживания
             async with async_session_maker() as session:
                 tracking_manager = TrackingManager(session=session)
@@ -202,9 +204,13 @@ class TrackingParser:
             for tracking in trackings:
                 if tracking.is_finished:
                     continue
+                if tracking.user.is_banned:
+                    continue
+                if datetime.datetime.utcnow() > tracking.user.subscription_expires_at:
+                    continue
                 # Если этого трекинга нет в обработке
                 if tracking.id not in mapping_id_to_tracking:
-                    logging.info(f'Tracking #{tracking.id} added')
+                    logger.info(f'Tracking #{tracking.id} added')
                     queue_tracking_ids.put(tracking.id)  # добавляем в конец очереди
                 # Обновляем/Создаем объект трекинга в маппинге для будущей обработки
                 mapping_id_to_tracking[tracking.id] = tracking
@@ -228,4 +234,3 @@ class TrackingParser:
                     ))
                     i += 1
                 await asyncio.sleep(0.01)
-

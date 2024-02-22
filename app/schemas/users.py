@@ -20,3 +20,4 @@ class UserUpdateSchema(BaseModel):
     is_banned: Optional[bool] = None  # забанен ли в боте
 
     subscription_expires_at: Optional[datetime.datetime] = None
+    last_expire_notification_sent_at: Optional[datetime.datetime] = None

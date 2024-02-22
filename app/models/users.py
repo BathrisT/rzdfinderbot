@@ -16,6 +16,10 @@ class UserModel(Base):
     last_name: Mapped[Optional[str]] = mapped_column()  # фамилия в тг
     username: Mapped[Optional[str]] = mapped_column()  # username в тг
     is_banned: Mapped[bool] = mapped_column(default=False)  # забанен ли в боте
+
     subscription_expires_at: Mapped[Optional[datetime.datetime]] = mapped_column()  # Когда истекает подписка
+    last_expire_notification_sent_at: Mapped[Optional[datetime.datetime]] = mapped_column(
+        server_default='FALSE'
+    )  # Дата последней нотификаций об истечении подписки
 
     created_at: Mapped[datetime.datetime] = mapped_column(default=datetime.datetime.utcnow)

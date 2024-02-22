@@ -32,8 +32,8 @@ async def start_create_tracking_with_existing_trackings(
     tracking_manager = TrackingManager(session=session)
     user_trackings = await tracking_manager.get_user_trackings(user_id=callback.from_user.id, only_active=False)
 
-    #  проверка на количество уже созданных отслеживаний. Если уже больше 10, то нельзя
-    if len(list(filter(lambda tracking: not tracking.is_finished, user_trackings))) >= 10:
+    #  проверка на количество уже созданных отслеживаний. Если уже больше 5, то нельзя
+    if len(list(filter(lambda tracking: not tracking.is_finished, user_trackings))) >= 5:
         text = (
             '❌ Вы уже создали максимальное количество активных отслеживаний. '
             '<b>Удалите одно из текущих отслеживаний</b>, чтобы создать новое'

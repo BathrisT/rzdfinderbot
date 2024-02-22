@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio.session import AsyncSession
-from sqlalchemy import select, not_
+from sqlalchemy import select, not_, update
+from sqlalchemy.orm import selectinload
 
 from cruds.base_manager import BaseManager
 from models.trackings import TrackingModel
@@ -24,5 +25,9 @@ class TrackingManager(BaseManager[TrackingModel, TrackingCreateSchema, TrackingU
         query = select(TrackingModel)
         if only_active:
             query = query.where(not_(TrackingModel.is_finished))
-        query = query.order_by(TrackingModel.created_at.desc())
+        query = query.order_by(TrackingModel.created_at.desc()).options(selectinload(TrackingModel.user))
         return (await self._session.scalars(query)).all()
+
+    async def clear_first_notification_date(self, tracking_id: int) -> None:
+        query = update(TrackingModel).where(TrackingModel.id == tracking_id).values(first_notification_sent_at=None)
+        await self._session.execute(query)

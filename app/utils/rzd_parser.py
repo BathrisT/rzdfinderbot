@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime
 
+from loguru import logger
 from httpx import AsyncClient
 import fake_useragent
 
@@ -43,6 +44,10 @@ class RZDParser:
                 'MergeSuburban': True
             }
         )
+        logger.debug(
+            f'Запрос к api/v1/suggests. Query: "{query}"; \n'
+            f'Ответ: "{response.text}"'
+        )
         response_data = response.json()
         if len(response_data) == 0:
             return []
@@ -69,6 +74,10 @@ class RZDParser:
                 "SpecialPlacesDemand": "StandardPlacesAndForDisabledPersons",
                 "CarIssuingType": "PassengersAndBaggage"
             }
+        )
+        logger.debug(
+            f'Запрос к /apib2b/p/Railway/V1/Search/TrainPricing?service_provider=B2B_RZD; \n'
+            f'Ответ: "{response.text[:50]}"'
         )
         data = response.json()
         #print(data)
