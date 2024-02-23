@@ -22,8 +22,6 @@ from utils.rzd_parser import RZDParser
 from .exceptions import TrackingFinishedException
 
 
-# TODO: обработка ошибок  # class logging
-# TODO: подумать что делать с таймаутом
 class TrackingParser:
     def __init__(
             self,
@@ -141,7 +139,7 @@ class TrackingParser:
                         obj_in=TrackingUpdateSchema(first_notification_sent_at=datetime.datetime.utcnow())
                     )
                     tracking = await tracking_manager.get(tracking.id)
-                await self._aiogram_bot.send_message(
+                sent_message = await self._aiogram_bot.send_message(
                     chat_id=tracking.user_id,
                     text=self._generate_notification_text_from_trains(tracking=tracking, trains=filtered_trains),
                     parse_mode='HTML',
@@ -151,8 +149,10 @@ class TrackingParser:
                 #  Сохраняем информацию о нотификации
                 await tracking_notification_manager.create(TrackingNotificationCreateSchema(
                     tracking_id=tracking.id,
-                    user_id=tracking.user_id
+                    user_id=tracking.user_id,
+                    telegram_message_id=sent_message.message_id
                 ))
+                logger.info(f'tracking #{tracking.id} sent notification')
             await session.commit()
 
         logger.debug(f'#{tracking.id} handled')
@@ -188,49 +188,63 @@ class TrackingParser:
             logger.error(f'Произошла неизвестная ошибка:\n {traceback.format_exc()}')
         self._current_parallel_handlers -= 1
 
+    async def one_cycle(
+            self,
+            queue_tracking_ids: Queue,
+            mapping_id_to_tracking: dict[int, TrackingModel]
+    ):
+        async with async_session_maker() as session:
+            tracking_manager = TrackingManager(session=session)
+            trackings = await tracking_manager.get_all_tracking(only_active=True)
+
+        # Обновляем текущие трекинги + добавляем новые
+        for tracking in trackings:
+            if tracking.is_finished:
+                continue
+            if tracking.user.is_banned:
+                continue
+            if datetime.datetime.utcnow() > tracking.user.subscription_expires_at:
+                continue
+            # Если этого трекинга нет в обработке
+            if tracking.id not in mapping_id_to_tracking:
+                logger.info(f'Tracking #{tracking.id} added')
+                queue_tracking_ids.put(tracking.id)  # добавляем в конец очереди
+            # Обновляем/Создаем объект трекинга в маппинге для будущей обработки
+            mapping_id_to_tracking[tracking.id] = tracking
+
+        # Удаляем финишированные трекинги
+        tracking_ids_from_database = set(map(lambda tracking: tracking.id, trackings))
+        deleted_tracking_ids = list(filter(
+            lambda tracking_id: tracking_id not in tracking_ids_from_database,
+            mapping_id_to_tracking
+        ))
+        for deleted_tracking_id in deleted_tracking_ids:
+            del mapping_id_to_tracking[deleted_tracking_id]
+
+        # Проходимся по очереди отслеживаний
+        i = 0
+        while i < len(trackings):
+            if self._current_parallel_handlers < self._limit_of_parallel_handlers and not queue_tracking_ids.empty():
+                asyncio.create_task(self._handle_tracking_with_exception_handling(
+                    queue_tracking_ids=queue_tracking_ids,
+                    mapping_id_to_tracking=mapping_id_to_tracking
+                ))
+                i += 1
+            await asyncio.sleep(0.01)
+
     async def start(self):
         logger.info('Background TrackingParser started')
         queue_tracking_ids: Queue = Queue()  # Очередь, которая используется для обработки отслеживаний
         mapping_id_to_tracking: dict[int, TrackingModel] = dict()  # {12: TrackingModel()}
 
         while True:
-            logger.debug('Завершен круг очереди отслеживаний')
-            # Получаем все отслеживания
-            async with async_session_maker() as session:
-                tracking_manager = TrackingManager(session=session)
-                trackings = await tracking_manager.get_all_tracking(only_active=True)
+            #  logger.debug('Завершен круг очереди отслеживаний')
 
-            # Обновляем текущие трекинги + добавляем новые
-            for tracking in trackings:
-                if tracking.is_finished:
-                    continue
-                if tracking.user.is_banned:
-                    continue
-                if datetime.datetime.utcnow() > tracking.user.subscription_expires_at:
-                    continue
-                # Если этого трекинга нет в обработке
-                if tracking.id not in mapping_id_to_tracking:
-                    logger.info(f'Tracking #{tracking.id} added')
-                    queue_tracking_ids.put(tracking.id)  # добавляем в конец очереди
-                # Обновляем/Создаем объект трекинга в маппинге для будущей обработки
-                mapping_id_to_tracking[tracking.id] = tracking
-
-            # Удаляем финишированные трекинги
-            tracking_ids_from_database = set(map(lambda tracking: tracking.id, trackings))
-            deleted_tracking_ids = list(filter(
-                lambda tracking_id: tracking_id not in tracking_ids_from_database,
-                mapping_id_to_tracking
-            ))
-            for deleted_tracking_id in deleted_tracking_ids:
-                del mapping_id_to_tracking[deleted_tracking_id]
-
-            # Проходимся по очереди отслеживаний
-            i = 0
-            while i < len(trackings):
-                if self._current_parallel_handlers < self._limit_of_parallel_handlers and not queue_tracking_ids.empty():
-                    asyncio.create_task(self._handle_tracking_with_exception_handling(
-                        queue_tracking_ids=queue_tracking_ids,
-                        mapping_id_to_tracking=mapping_id_to_tracking
-                    ))
-                    i += 1
-                await asyncio.sleep(0.01)
+            try:
+                await self.one_cycle(
+                    queue_tracking_ids=queue_tracking_ids,
+                    mapping_id_to_tracking=mapping_id_to_tracking
+                )
+            except Exception:
+                logger.error(f'Global error in cycle of TrackingParser: \n'
+                             f'{traceback.format_exc()}')

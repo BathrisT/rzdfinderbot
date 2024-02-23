@@ -1,3 +1,5 @@
+from typing import Optional
+
 from sqlalchemy.ext.asyncio.session import AsyncSession
 from sqlalchemy import select
 
@@ -15,7 +17,7 @@ class TrackingNotificationManager(
             session=session
         )
 
-    async def get_last_notification_by_tracking_id(self, tracking_id: int):
+    async def get_last_notification_by_tracking_id(self, tracking_id: int) -> Optional[TrackingNotificationModel]:
         query = select(TrackingNotificationModel).where(
             TrackingNotificationModel.tracking_id == tracking_id
         ).order_by(TrackingNotificationModel.created_at.desc())

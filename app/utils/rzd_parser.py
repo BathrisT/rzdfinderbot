@@ -46,7 +46,7 @@ class RZDParser:
         )
         logger.debug(
             f'Запрос к api/v1/suggests. Query: "{query}"; \n'
-            f'Ответ: "{response.text}"'
+            f'Ответ: "{response.text[:150]}..."'
         )
         response_data = response.json()
         if len(response_data) == 0:
@@ -77,10 +77,13 @@ class RZDParser:
         )
         logger.debug(
             f'Запрос к /apib2b/p/Railway/V1/Search/TrainPricing?service_provider=B2B_RZD; \n'
-            f'Ответ: "{response.text[:50]}"'
+            f'Ответ: "{response.text[:150]}..."'
         )
+
         data = response.json()
         #print(data)
+        if 'Trains' not in data:
+            logger.error(f'Ржд отдал неверный ответ: {data}')
 
         trains: list[Train] = []
 

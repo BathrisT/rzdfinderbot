@@ -3,6 +3,7 @@ import datetime
 import traceback
 from typing import Literal
 
+from keyboards.subscription_notify import subscription_notify_keyboard
 from loguru import logger
 from aiogram import Bot
 
@@ -12,13 +13,12 @@ from models.users import UserModel
 from schemas.users import UserUpdateSchema
 
 
-# TODO: проверить
 class SubscriptionExpiringNotifier:
-    def __init__(self, aiogram_bot_token: str, tg_bot_username: str):
+    def __init__(self, aiogram_bot_token: str):
         self._aiogram_bot = Bot(token=aiogram_bot_token)
-        self._tg_bot_username = tg_bot_username
 
     async def send_notification(self, notification_type: Literal['3d', '1d', 'after'], user: UserModel):
+
         text: str = None
         if notification_type == '3d':
             text = (
@@ -32,8 +32,8 @@ class SubscriptionExpiringNotifier:
             )
         elif notification_type == 'after':
             text = (
-                '📕 <b>Подписка на сервис закончилась.</b> Через <b>2 дня</b> мы завершим ваши активные отслеживания.\n'
-                '💫 Чтобы <b>вернуть доступ к возможностям бота</b>, необходимо продлите подписку.\n\n'
+                '📕 <b>Подписка на сервис закончилась.</b> Через <b>2 дня</b> мы завершим ваши активные отслеживания.\n\n'
+                'Чтобы <b>вернуть доступ к возможностям бота</b>, необходимо продлить подписку. '
                 '<b>Спасибо за пользование сервисом</b>'
             )
         try:
@@ -41,17 +41,21 @@ class SubscriptionExpiringNotifier:
                 text=text,
                 chat_id=user.id,
                 disable_web_page_preview=True,
-                parse_mode='HTML'
+                parse_mode='HTML',
+                reply_markup=subscription_notify_keyboard()
             )
-        except Exception:  # TODO: заменить на более частную обработку
+        except Exception:
             pass
 
     async def handle_user(self, user: UserModel):
+        if not user.subscription_expires_at:
+            return
+
         notification_for_3_days_flag = (
                 (
-                        (datetime.datetime.utcnow() - datetime.timedelta(days=2))
-                        > user.subscription_expires_at >
-                        (datetime.datetime.utcnow() - datetime.timedelta(days=3))
+                        (datetime.datetime.utcnow() + datetime.timedelta(days=2))
+                        < user.subscription_expires_at <
+                        (datetime.datetime.utcnow() + datetime.timedelta(days=3))
                 ) and (
                         user.last_expire_notification_sent_at is None
                         or
@@ -61,19 +65,9 @@ class SubscriptionExpiringNotifier:
         )
         notification_for_1_day_flag = (
                 (
-                        (datetime.datetime.utcnow() - datetime.timedelta(hours=24))
-                        > user.subscription_expires_at >
-                        (datetime.datetime.utcnow() - datetime.timedelta(hours=23))
-                ) and (
-                        user.last_expire_notification_sent_at is None
-                        or
-                        user.last_expire_notification_sent_at < (
-                                    datetime.datetime.utcnow() - datetime.timedelta(hours=2))
-                )
-        )
-        notification_after_expired_subscription_flag = (
-                (
-                        user.subscription_expires_at < (datetime.datetime.utcnow() - datetime.timedelta(hours=1))
+                        (datetime.datetime.utcnow() + datetime.timedelta(hours=23))
+                        < user.subscription_expires_at <
+                        (datetime.datetime.utcnow() + datetime.timedelta(hours=24))
                 ) and (
                         user.last_expire_notification_sent_at is None
                         or
@@ -81,12 +75,43 @@ class SubscriptionExpiringNotifier:
                                 datetime.datetime.utcnow() - datetime.timedelta(hours=2))
                 )
         )
+        notification_after_expired_subscription_flag = (
+                (
+                        (datetime.datetime.utcnow() - datetime.timedelta(hours=1))
+                        < user.subscription_expires_at <
+                        (datetime.datetime.utcnow())
+                ) and (
+                        user.last_expire_notification_sent_at is None
+                        or
+                        user.last_expire_notification_sent_at < (
+                                datetime.datetime.utcnow() - datetime.timedelta(hours=2))
+                )
+        )
+
         if notification_for_3_days_flag:
             await self.send_notification(notification_type='3d', user=user)
+            logger.info(
+                f'3d expiring notification sent. '
+                f'user: {user.id}; '
+                f'subscription expiring: {user.subscription_expires_at}; '
+                f'last notification: {user.last_expire_notification_sent_at}'
+            )
         if notification_for_1_day_flag:
             await self.send_notification(notification_type='1d', user=user)
+            logger.info(
+                f'1d expiring notification sent. '
+                f'user: {user.id}; '
+                f'subscription expiring: {user.subscription_expires_at}; '
+                f'last notification: {user.last_expire_notification_sent_at}'
+            )
         if notification_after_expired_subscription_flag:
             await self.send_notification(notification_type='after', user=user)
+            logger.info(
+                f'subscription expired notification sent. '
+                f'user: {user.id}; '
+                f'subscription expiring: {user.subscription_expires_at}; '
+                f'last notification: {user.last_expire_notification_sent_at}'
+            )
 
         if any([notification_for_3_days_flag, notification_for_1_day_flag,
                 notification_after_expired_subscription_flag]):
@@ -115,7 +140,7 @@ class SubscriptionExpiringNotifier:
         logger.info('Background SubscriptionExpiringNotifier started')
 
         while True:
-            logger.debug('Завершен круг отправки нотификаций об окончании подписки')
+            #  logger.debug('Завершен круг отправки нотификаций об окончании подписки')
             try:
                 await self.cycle()
             except Exception:

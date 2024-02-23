@@ -10,7 +10,7 @@ from database import async_session_maker
 from models.trackings import TrackingModel
 from schemas.trackings import TrackingUpdateSchema
 
-# TODO: проверить
+
 class TrackingCloser:
     def __init__(self, aiogram_bot_token: str, tg_bot_username: str):
         self._aiogram_bot = Bot(token=aiogram_bot_token)
@@ -31,7 +31,7 @@ class TrackingCloser:
 
     async def send_tracking_closed_notification(self, deleted_tracking: TrackingModel, user_id: int):
         text = (
-            f'<b>📕 Отслеживание #{deleted_tracking.id}</b> было отключено\n\n'
+            f'<b>📕 Отслеживание #{deleted_tracking.id}</b> было завершено\n\n'
             f'<b>ℹ️ Информация об отслеживании:</b>\n'
             f'Откуда: {deleted_tracking.from_city_name}\n'
             f'Куда: {deleted_tracking.to_city_name}\n'
@@ -47,7 +47,7 @@ class TrackingCloser:
                 disable_web_page_preview=True,
                 parse_mode='HTML'
             )
-        except Exception:  # TODO: заменить на более частную обработку
+        except Exception:
             pass
 
     async def handle_tracking(self, tracking: TrackingModel):
@@ -66,6 +66,8 @@ class TrackingCloser:
             tracking.first_notification_sent_at is not None and (
                     datetime.datetime.utcnow() > tracking.first_notification_sent_at + datetime.timedelta(days=1)
             ),
+            # проверка на то, что дата отслеживания прошла
+            datetime.date.today() > tracking.date
         ]
 
         if any(filters_without_notifications + filters_with_notifications):
@@ -92,7 +94,6 @@ class TrackingCloser:
         logger.info('Background TrackingDBCloser started')
 
         while True:
-            logger.debug('Завершен круг очереди удаления')
             try:
                 await self.cycle()
             except Exception:

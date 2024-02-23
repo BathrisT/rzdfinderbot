@@ -42,6 +42,7 @@ async def on_click_success_notification_button(
         )
         return
 
+    await tracking_manager.clear_first_notification_date(tracking_id=tracking_id)
     if callback.data.startswith('success_notification_'):
         await tracking_manager.update(obj_id=tracking_id, obj_in=TrackingUpdateSchema(is_finished=True))
         text = (
@@ -49,7 +50,6 @@ async def on_click_success_notification_button(
             'Мы рады что помогли вам взять билет. Спасибо за пользование сервисом!'
         )
     else:
-        await tracking_manager.clear_first_notification_date(tracking_id=tracking_id)
         text = (
             f'<b>📗 Отслеживание #{tracking_id} оставлено активным</b>\n\n'
             '<b>ℹ️ Совет:</b> чтобы успеть взять билет, включите оповещения в боте и действуйте быстро'

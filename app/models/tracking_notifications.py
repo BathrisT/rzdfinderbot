@@ -18,7 +18,8 @@ class TrackingNotificationModel(Base):
 
     tracking_id = mapped_column(BigInteger, ForeignKey('trackings.id', ondelete='CASCADE'))
     user_id = mapped_column(BigInteger, ForeignKey('users.id', ondelete='CASCADE'))
-    train_number: Mapped[Optional[str]] = mapped_column()  # TODO: мб удалить
+    train_number: Mapped[Optional[str]] = mapped_column()
+    telegram_message_id: Mapped[int] = mapped_column()
 
     created_at: Mapped[datetime.datetime] = mapped_column(default=datetime.datetime.utcnow)
 

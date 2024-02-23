@@ -51,7 +51,7 @@ async def main():
     storage = RedisStorage(
         redis=Redis(host=config.redis.host, port=config.redis.port, db=5, password=config.redis.password)
     )
-    bot = Bot(token=config.tg_bot.token, parse_mode='HTML')
+    bot = Bot(token=config.tg_bot.token)
     dp = Dispatcher(storage=storage)
 
     # TODO: # Добавить мидлварь ржд парсера

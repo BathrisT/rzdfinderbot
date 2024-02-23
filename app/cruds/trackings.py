@@ -31,3 +31,12 @@ class TrackingManager(BaseManager[TrackingModel, TrackingCreateSchema, TrackingU
     async def clear_first_notification_date(self, tracking_id: int) -> None:
         query = update(TrackingModel).where(TrackingModel.id == tracking_id).values(first_notification_sent_at=None)
         await self._session.execute(query)
+
+    async def get_user_trackings_with_not_answered_notification(self, user_id: int):
+        filters = [
+            TrackingModel.user_id == user_id,
+            not_(TrackingModel.is_finished),
+            TrackingModel.first_notification_sent_at != None
+        ]
+        query = select(TrackingModel).where(*filters).order_by(TrackingModel.created_at.desc()).options(selectinload(TrackingModel.user))
+        return (await self._session.scalars(query)).all()
