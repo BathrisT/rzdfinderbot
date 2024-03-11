@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime
 
 from loguru import logger
-from httpx import AsyncClient
+import aiohttp
 import fake_useragent
 
 from schemas.rzd_parser import City, Train
@@ -13,8 +13,8 @@ class RZDParser:
         self._session = self._get_new_session()
 
     @staticmethod
-    def _get_new_session() -> AsyncClient:
-        return AsyncClient(
+    def _get_new_session() -> aiohttp.ClientSession:
+        return aiohttp.ClientSession(
             headers={
                 'User-Agent': fake_useragent.UserAgent().random,
                 'Origin': 'https://ticket.rzd.ru',
@@ -22,16 +22,16 @@ class RZDParser:
                 'Referer': 'https://ticket.rzd.ru'
             },
             base_url='https://ticket.rzd.ru',
-            timeout=5
+            timeout=aiohttp.ClientTimeout(total=5)
         )
 
     async def refresh_session(self):
         if self._session is not None:
-            await self._session.aclose()
+            await self._session.close()
         self._session = self._get_new_session()
 
     async def close_session(self):
-        await self._session.aclose()
+        await self._session.close()
 
     async def get_cities_by_query(self, query: str) -> list[City]:
         response = await self._session.get(
@@ -44,11 +44,12 @@ class RZDParser:
                 'MergeSuburban': True
             }
         )
+        response_text = await response.text()
         logger.debug(
             f'Запрос к api/v1/suggests. Query: "{query}"; \n'
-            f'Ответ: "{response.text[:150]}..."'
+            f'Ответ: "{response_text[:150]}..."'
         )
-        response_data = response.json()
+        response_data = await response.json()
         if len(response_data) == 0:
             return []
         #print(response_data)
@@ -75,12 +76,13 @@ class RZDParser:
                 "CarIssuingType": "PassengersAndBaggage"
             }
         )
+        response_text = await response.text()
         logger.debug(
             f'Запрос к /apib2b/p/Railway/V1/Search/TrainPricing?service_provider=B2B_RZD; \n'
-            f'Ответ: "{response.text[:150]}..."'
+            f'Ответ: "{response_text[:150]}..."'
         )
 
-        data = response.json()
+        data = await response.json()
         #print(data)
         if 'Trains' not in data:
             logger.error(f'Ржд отдал неверный ответ: {data}')
