@@ -176,7 +176,7 @@ class TrackingParser:
             )
         except TrackingFinishedException:
             pass
-        except TimeoutException:
+        except asyncio.exceptions.TimeoutError:
             # Информацию о каждой ошибке подключения не присылаем
             self._connection_errors_counter += 1
             if self._connection_errors_counter == 10:
