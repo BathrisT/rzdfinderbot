@@ -433,7 +433,6 @@ async def save_tracking(
         delete_prev_messages=True
     )
 
-    await rzd_parser.refresh_session()
     trains_on_this_route = await rzd_parser.get_trains(
         from_city_id=tracking_data['from_city_id'],
         to_city_id=tracking_data['to_city_id'],

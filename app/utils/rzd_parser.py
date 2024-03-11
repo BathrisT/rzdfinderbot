@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime
+from typing import Optional
 
 from loguru import logger
 import aiohttp
@@ -9,9 +10,6 @@ from schemas.rzd_parser import City, Train
 
 
 class RZDParser:
-    def __init__(self):
-        self._session = self._get_new_session()
-
     @staticmethod
     def _get_new_session() -> aiohttp.ClientSession:
         return aiohttp.ClientSession(
@@ -25,34 +23,28 @@ class RZDParser:
             timeout=aiohttp.ClientTimeout(total=5)
         )
 
-    async def refresh_session(self):
-        if self._session is not None:
-            await self._session.close()
-        self._session = self._get_new_session()
-
-    async def close_session(self):
-        await self._session.close()
-
     async def get_cities_by_query(self, query: str) -> list[City]:
-        response = await self._session.get(
-            url='api/v1/suggests',
-            params={
-                'Query': query,
-                'TransportType': 'bus,avia,rail,aeroexpress,suburban,boat',
-                'GroupResults': True,
-                'RailwaySortPriority': True,
-                'MergeSuburban': True
-            }
-        )
-        response_text = await response.text()
-        logger.debug(
-            f'Запрос к api/v1/suggests. Query: "{query}"; \n'
-            f'Ответ: "{response_text[:150]}..."'
-        )
-        response_data = await response.json()
+        async with self._get_new_session() as session:
+            response = await session.get(
+                url='api/v1/suggests',
+                params={
+                    'Query': query,
+                    'TransportType': 'bus,avia,rail,aeroexpress,suburban,boat',
+                    'GroupResults': True,
+                    'RailwaySortPriority': True,
+                    'MergeSuburban': True
+                }
+            )
+            response_text = await response.text()
+            logger.debug(
+                f'Запрос к api/v1/suggests. Query: "{query}"; \n'
+                f'Ответ: "{response_text[:150]}..."'
+            )
+            response_data = await response.json()
+
         if len(response_data) == 0:
             return []
-        #print(response_data)
+
         cities = response_data['city']
         return [City.model_validate(city) for city in cities if 'expressCode' in city and 'busCode' in city]
 
@@ -62,28 +54,28 @@ class RZDParser:
             to_city_id: str,
             date: datetime.date
     ) -> list[Train]:
-        response = await self._session.post(
-            url='/apib2b/p/Railway/V1/Search/TrainPricing?service_provider=B2B_RZD',
-            json={
-                "Origin": from_city_id,
-                "Destination": to_city_id,
-                "DepartureDate": date.isoformat(),
-                "TimeFrom": 0,
-                "TimeTo": 24,
-                "CarGrouping": "DontGroup",
-                "GetByLocalTime": True,
-                "SpecialPlacesDemand": "StandardPlacesAndForDisabledPersons",
-                "CarIssuingType": "PassengersAndBaggage"
-            }
-        )
-        response_text = await response.text()
-        logger.debug(
-            f'Запрос к /apib2b/p/Railway/V1/Search/TrainPricing?service_provider=B2B_RZD; \n'
-            f'Ответ: "{response_text[:150]}..."'
-        )
+        async with self._get_new_session() as session:
+            response = await session.post(
+                url='/apib2b/p/Railway/V1/Search/TrainPricing?service_provider=B2B_RZD',
+                json={
+                    "Origin": from_city_id,
+                    "Destination": to_city_id,
+                    "DepartureDate": date.isoformat(),
+                    "TimeFrom": 0,
+                    "TimeTo": 24,
+                    "CarGrouping": "DontGroup",
+                    "GetByLocalTime": True,
+                    "SpecialPlacesDemand": "StandardPlacesAndForDisabledPersons",
+                    "CarIssuingType": "PassengersAndBaggage"
+                }
+            )
+            response_text = await response.text()
+            logger.debug(
+                f'Запрос к /apib2b/p/Railway/V1/Search/TrainPricing?service_provider=B2B_RZD; \n'
+                f'Ответ: "{response_text[:150]}..."'
+            )
+            data = await response.json()
 
-        data = await response.json()
-        #print(data)
         if 'Trains' not in data:
             logger.error(f'Ржд отдал неверный ответ: {data}')
 
@@ -148,7 +140,6 @@ async def main():
     # from pprint import pprint
     # for t in data:
     #     print(t)
-    await parser.close_session()
 
 
 if __name__ == '__main__':

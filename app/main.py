@@ -64,7 +64,6 @@ async def main():
     try:
         await dp.start_polling(bot, config=config, rzd_parser=rzd_parser)
     finally:
-        await rzd_parser.close_session()
         await logger.complete()
 
 

@@ -106,13 +106,13 @@ class TrackingParser:
             queue_tracking_ids=queue_tracking_ids,
             mapping_id_to_tracking=mapping_id_to_tracking
         )
+
         rzd_parser = RZDParser()
         trains = await rzd_parser.get_trains(
             from_city_id=tracking.from_city_id,
             to_city_id=tracking.to_city_id,
             date=tracking.date
         )
-        await rzd_parser.close_session()
         filtered_trains = filter_trains(
             trains=trains,
             max_price=tracking.max_price
