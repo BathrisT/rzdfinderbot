@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import random
 import traceback
 from json import JSONDecodeError
 from queue import Queue
@@ -169,6 +170,8 @@ class TrackingParser:
             mapping_id_to_tracking: dict[int, TrackingModel]
     ):
         self._current_parallel_handlers += 1
+        n = random.randint(1, 1000000)
+        #logger.info(f'START {n}')
         try:
             await self._handle_tracking(
                 queue_tracking_ids=queue_tracking_ids,
@@ -178,6 +181,7 @@ class TrackingParser:
             pass
         except asyncio.exceptions.TimeoutError:
             # Информацию о каждой ошибке подключения не присылаем
+            #logger.info(f"TIMEOUT {n}")
             self._connection_errors_counter += 1
             if self._connection_errors_counter == 10:
                 logger.error(f'Произошла ошибка подключения к серверу РЖД')
@@ -186,6 +190,7 @@ class TrackingParser:
             logger.error(f'Ошибка декодирования ответа от сервера: \n{exc.doc}')
         except Exception:
             logger.error(f'Произошла неизвестная ошибка:\n {traceback.format_exc()}')
+        #logger.info(f'FINISH {n}')
         self._current_parallel_handlers -= 1
 
     async def one_cycle(

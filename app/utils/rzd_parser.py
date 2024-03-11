@@ -20,7 +20,7 @@ class RZDParser:
                 'Referer': 'https://ticket.rzd.ru'
             },
             base_url='https://ticket.rzd.ru',
-            timeout=aiohttp.ClientTimeout(total=5)
+            conn_timeout=5
         )
 
     async def get_cities_by_query(self, query: str) -> list[City]:
