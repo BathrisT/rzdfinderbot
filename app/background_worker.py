@@ -18,7 +18,7 @@ async def main():
     # setup logger
 
     logger.remove()
-    logger.add(sys.stdout, level="INFO")
+    logger.add(sys.stdout, level="DEBUG")
 
     logger_tg_handler = TelegramBotHandler(
         bot_token=config.service_notifications.bot_token,
