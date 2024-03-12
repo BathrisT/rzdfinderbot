@@ -167,7 +167,6 @@ class TrackingParser:
         try:
             await self._handle_tracking(tracking=tracking)
         except TrackingFinishedException:
-            logger.info('tracking finished')
             pass
         except aiohttp.client_exceptions.ServerTimeoutError:
             # Информацию о каждой ошибке подключения не присылаем
