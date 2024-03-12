@@ -170,7 +170,7 @@ class TrackingParser:
             mapping_id_to_tracking: dict[int, TrackingModel]
     ):
         self._current_parallel_handlers += 1
-        n = random.randint(1, 1000000)
+        #n = random.randint(1, 1000000)
         #logger.info(f'START {n}')
         try:
             await self._handle_tracking(
@@ -178,15 +178,17 @@ class TrackingParser:
                 mapping_id_to_tracking=mapping_id_to_tracking
             )
         except TrackingFinishedException:
+            logger.info('tracking finished')
             pass
         except asyncio.exceptions.TimeoutError:
             # Информацию о каждой ошибке подключения не присылаем
-            #logger.info(f"TIMEOUT {n}")
+            logger.info(f"TIMEOUT {n}")
             self._connection_errors_counter += 1
             if self._connection_errors_counter == 10:
                 logger.error(f'Произошла ошибка подключения к серверу РЖД')
                 self._connection_errors_counter = 0
         except JSONDecodeError as exc:
+            logger.info('Ошибка декодирования ответа от сервера')
             logger.error(f'Ошибка декодирования ответа от сервера: \n{exc.doc}')
         except Exception:
             logger.error(f'Произошла неизвестная ошибка:\n {traceback.format_exc()}')
@@ -228,6 +230,9 @@ class TrackingParser:
 
         # Проходимся по очереди отслеживаний
         i = 0
+        print(f'{self._current_parallel_handlers=}')
+        print(f'{self._limit_of_parallel_handlers=}')
+        print(queue_tracking_ids)
         while i < len(trackings):
             if self._current_parallel_handlers < self._limit_of_parallel_handlers and not queue_tracking_ids.empty():
                 asyncio.create_task(self._handle_tracking_with_exception_handling(
