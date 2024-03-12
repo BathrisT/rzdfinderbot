@@ -233,7 +233,7 @@ class TrackingParser:
         i = 0
         print(f'{self._current_parallel_handlers=}')
         print(f'{self._limit_of_parallel_handlers=}')
-        print(queue_tracking_ids)
+        print(f'{queue_tracking_ids.qsize()}')
         while i < len(trackings):
             if self._current_parallel_handlers < self._limit_of_parallel_handlers and not queue_tracking_ids.empty():
                 asyncio.create_task(self._handle_tracking_with_exception_handling(
