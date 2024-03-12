@@ -1,13 +1,11 @@
 import asyncio
 import datetime
-import random
 import traceback
 from json import JSONDecodeError
 from queue import Queue
 
 import aiohttp
 from aiogram import Bot
-from httpx import TimeoutException
 from loguru import logger
 
 from cruds.tracking_notifications import TrackingNotificationManager
@@ -102,7 +100,7 @@ class TrackingParser:
     async def _handle_tracking(
             self,
             tracking: TrackingModel,
-):
+    ):
 
         rzd_parser = RZDParser()
         trains = await rzd_parser.get_trains(
@@ -173,13 +171,11 @@ class TrackingParser:
             pass
         except aiohttp.client_exceptions.ServerTimeoutError:
             # Информацию о каждой ошибке подключения не присылаем
-            logger.info(f"TIMEOUT")
             self._connection_errors_counter += 1
             if self._connection_errors_counter == 10:
                 logger.error(f'Произошла ошибка подключения к серверу РЖД')
                 self._connection_errors_counter = 0
         except JSONDecodeError as exc:
-            logger.info('Ошибка декодирования ответа от сервера')
             logger.error(f'Ошибка декодирования ответа от сервера: \n{exc.doc}')
         except Exception:
             logger.error(f'Произошла неизвестная ошибка:\n {traceback.format_exc()}')
@@ -190,6 +186,7 @@ class TrackingParser:
             mapping_id_to_tracking=mapping_id_to_tracking
         )
         self._current_parallel_handlers -= 1
+
     async def one_cycle(
             self,
             queue_tracking_ids: Queue,
