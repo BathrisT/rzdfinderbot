@@ -170,7 +170,7 @@ class TrackingParser:
 
         try:
             await self._handle_tracking(tracking=tracking)
-        except aiohttp.client_exceptions.ServerTimeoutError:
+        except asyncio.exceptions.TimeoutError:
             # Информацию о каждой ошибке подключения не присылаем
             self._connection_errors_counter += 1
             if self._connection_errors_counter == 10:
