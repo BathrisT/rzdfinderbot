@@ -28,7 +28,7 @@ async def main():
     logger.add(logger_tg_handler.notify, level='ERROR')
 
     config = Config()
-    tracking_parser = TrackingParser(aiogram_bot_token=config.tg_bot.token, limit_of_parallel_handlers=2)
+    tracking_parser = TrackingParser(aiogram_bot_token=config.tg_bot.token, limit_of_parallel_handlers=5)
     tracking_closer = TrackingCloser(aiogram_bot_token=config.tg_bot.token, tg_bot_username=config.tg_bot.username)
     subscription_handler = SubscriptionExpiringNotifier(aiogram_bot_token=config.tg_bot.token)
 
