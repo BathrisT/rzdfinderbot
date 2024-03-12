@@ -159,15 +159,17 @@ class TrackingParser:
     ):
 
         self._current_parallel_handlers += 1
-        tracking = await self._get_tracking(
-            queue_tracking_ids=queue_tracking_ids,
-            mapping_id_to_tracking=mapping_id_to_tracking
-        )
+        try:
+            tracking = await self._get_tracking(
+                queue_tracking_ids=queue_tracking_ids,
+                mapping_id_to_tracking=mapping_id_to_tracking
+            )
+        except TrackingFinishedException:
+            self._current_parallel_handlers -= 1
+            return
 
         try:
             await self._handle_tracking(tracking=tracking)
-        except TrackingFinishedException:
-            pass
         except aiohttp.client_exceptions.ServerTimeoutError:
             # Информацию о каждой ошибке подключения не присылаем
             self._connection_errors_counter += 1
@@ -179,11 +181,15 @@ class TrackingParser:
         except Exception:
             logger.error(f'Произошла неизвестная ошибка:\n {traceback.format_exc()}')
 
-        await self._put_tracking(
-            tracking=tracking,
-            queue_tracking_ids=queue_tracking_ids,
-            mapping_id_to_tracking=mapping_id_to_tracking
-        )
+        try:
+            await self._put_tracking(
+                tracking=tracking,
+                queue_tracking_ids=queue_tracking_ids,
+                mapping_id_to_tracking=mapping_id_to_tracking
+            )
+        except TrackingFinishedException:
+            pass
+
         self._current_parallel_handlers -= 1
 
     async def one_cycle(
