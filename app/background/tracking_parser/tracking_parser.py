@@ -110,11 +110,13 @@ class TrackingParser:
         )
 
         rzd_parser = RZDParser()
+        #print(f'tracking #{tracking.id} getting')
         trains = await rzd_parser.get_trains(
             from_city_id=tracking.from_city_id,
             to_city_id=tracking.to_city_id,
             date=tracking.date
         )
+        #print(f'tracking #{tracking.id} ended getting')
         filtered_trains = filter_trains(
             trains=trains,
             max_price=tracking.max_price
@@ -170,31 +172,34 @@ class TrackingParser:
             queue_tracking_ids: Queue,
             mapping_id_to_tracking: dict[int, TrackingModel]
     ):
-        self._current_parallel_handlers += 1
-        #n = random.randint(1, 1000000)
-        #logger.info(f'START {n}')
         try:
-            await self._handle_tracking(
-                queue_tracking_ids=queue_tracking_ids,
-                mapping_id_to_tracking=mapping_id_to_tracking
-            )
-        except TrackingFinishedException:
-            logger.info('tracking finished')
-            pass
-        except aiohttp.client_exceptions.ServerTimeoutError:
-            # Информацию о каждой ошибке подключения не присылаем
-            logger.info(f"TIMEOUT")
-            self._connection_errors_counter += 1
-            if self._connection_errors_counter == 10:
-                logger.error(f'Произошла ошибка подключения к серверу РЖД')
-                self._connection_errors_counter = 0
-        except JSONDecodeError as exc:
-            logger.info('Ошибка декодирования ответа от сервера')
-            logger.error(f'Ошибка декодирования ответа от сервера: \n{exc.doc}')
+            self._current_parallel_handlers += 1
+            #n = random.randint(1, 1000000)
+            #logger.info(f'START {n}')
+            try:
+                await self._handle_tracking(
+                    queue_tracking_ids=queue_tracking_ids,
+                    mapping_id_to_tracking=mapping_id_to_tracking
+                )
+            except TrackingFinishedException:
+                logger.info('tracking finished')
+                pass
+            except aiohttp.client_exceptions.ServerTimeoutError:
+                # Информацию о каждой ошибке подключения не присылаем
+                logger.info(f"TIMEOUT")
+                self._connection_errors_counter += 1
+                if self._connection_errors_counter == 10:
+                    logger.error(f'Произошла ошибка подключения к серверу РЖД')
+                    self._connection_errors_counter = 0
+            except JSONDecodeError as exc:
+                logger.info('Ошибка декодирования ответа от сервера')
+                logger.error(f'Ошибка декодирования ответа от сервера: \n{exc.doc}')
+            except Exception:
+                logger.error(f'Произошла неизвестная ошибка:\n {traceback.format_exc()}')
+            #logger.info(f'FINISH {n}')
+            self._current_parallel_handlers -= 1
         except Exception:
-            logger.error(f'Произошла неизвестная ошибка:\n {traceback.format_exc()}')
-        #logger.info(f'FINISH {n}')
-        self._current_parallel_handlers -= 1
+            print('\n\n\n\nОБЩАЯ ОШИБКА:\n', traceback.format_exc(), '\n\n\n')
 
     async def one_cycle(
             self,
