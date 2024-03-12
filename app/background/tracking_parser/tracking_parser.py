@@ -5,6 +5,7 @@ import traceback
 from json import JSONDecodeError
 from queue import Queue
 
+import aiohttp
 from aiogram import Bot
 from httpx import TimeoutException
 from loguru import logger
@@ -180,9 +181,9 @@ class TrackingParser:
         except TrackingFinishedException:
             logger.info('tracking finished')
             pass
-        except asyncio.exceptions.TimeoutError:
+        except aiohttp.client_exceptions.ServerTimeoutError:
             # Информацию о каждой ошибке подключения не присылаем
-            logger.info(f"TIMEOUT {n}")
+            logger.info(f"TIMEOUT")
             self._connection_errors_counter += 1
             if self._connection_errors_counter == 10:
                 logger.error(f'Произошла ошибка подключения к серверу РЖД')
