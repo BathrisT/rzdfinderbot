@@ -30,9 +30,9 @@ class RZDParser:
                 params={
                     'Query': query,
                     'TransportType': 'bus,avia,rail,aeroexpress,suburban,boat',
-                    'GroupResults': True,
-                    'RailwaySortPriority': True,
-                    'MergeSuburban': True
+                    'GroupResults': 'true',
+                    'RailwaySortPriority': 'true',
+                    'MergeSuburban': 'true'
                 }
             )
             response_text = await response.text()
