@@ -1,4 +1,5 @@
 import asyncio
+import json
 from datetime import datetime
 from typing import Optional
 
@@ -40,7 +41,7 @@ class RZDParser:
                 f'Запрос к api/v1/suggests. Query: "{query}"; \n'
                 f'Ответ: "{response_text[:150]}..."'
             )
-            response_data = await response.json()
+            response_data = json.loads(response_text)
 
         if len(response_data) == 0:
             return []
@@ -74,14 +75,14 @@ class RZDParser:
                 f'Запрос к /apib2b/p/Railway/V1/Search/TrainPricing?service_provider=B2B_RZD; \n'
                 f'Ответ: "{response_text[:150]}..."'
             )
-            data = await response.json()
+            response_data = json.loads(response_text)
 
-        if 'Trains' not in data:
-            logger.error(f'Ржд отдал неверный ответ: {data}')
+        if 'Trains' not in response_data:
+            logger.error(f'Ржд отдал неверный ответ: {response_data}')
 
         trains: list[Train] = []
 
-        for train_json in data['Trains']:
+        for train_json in response_data['Trains']:
             sw_seats: int = 0
             sw_min_price: float = 9999999999999999
 
