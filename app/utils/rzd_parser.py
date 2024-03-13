@@ -26,7 +26,7 @@ class RZDParser:
     async def get_cities_by_query(self, query: str) -> list[City]:
         async with self._get_new_session() as session:
             response = await session.get(
-                url='api/v1/suggests',
+                url='/api/v1/suggests',
                 params={
                     'Query': query,
                     'TransportType': 'bus,avia,rail,aeroexpress,suburban,boat',
