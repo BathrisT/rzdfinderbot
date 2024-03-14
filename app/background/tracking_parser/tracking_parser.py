@@ -32,7 +32,8 @@ class TrackingParser:
         self._current_parallel_handlers = 0
         self._aiogram_bot = Bot(token=aiogram_bot_token)
 
-        self._connection_errors_counter = 0
+        self._last_connection_statuses: list[bool] = []
+        self._length_of_last_connection_statuses = 10
 
     async def _get_tracking(
             self,
@@ -152,6 +153,9 @@ class TrackingParser:
 
         logger.debug(f'#{tracking.id} handled')
 
+    def _add_connection_status(self, status: bool):
+        self._last_connection_statuses = self._last_connection_statuses[::-1][:self._length_of_last_connection_statuses] + [status]
+
     async def _handle_tracking_with_exception_handling(
             self,
             queue_tracking_ids: Queue,
@@ -170,12 +174,13 @@ class TrackingParser:
 
         try:
             await self._handle_tracking(tracking=tracking)
+            self._add_connection_status(True)
         except asyncio.exceptions.TimeoutError:
             # Информацию о каждой ошибке подключения не присылаем
-            self._connection_errors_counter += 1
-            if self._connection_errors_counter == 10:
-                logger.error(f'Произошла ошибка подключения к серверу РЖД')
-                self._connection_errors_counter = 0
+            self._add_connection_status(False)
+            if len(self._last_connection_statuses) == self._length_of_last_connection_statuses and not any(self._last_connection_statuses):
+                logger.error(f'Произошла ошибка подключения к серверу РЖД ({self._length_of_last_connection_statuses} подряд)')
+                self._last_connection_statuses = []
         except JSONDecodeError as exc:
             logger.error(f'Ошибка декодирования ответа от сервера: \n{exc.doc}')
         except Exception:
