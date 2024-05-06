@@ -17,6 +17,17 @@ class TrackingCreateSchema(BaseModel):
     date: datetime.date
     max_price: Optional[Union[int, float]] = None
 
+    sw_enabled: bool = True
+    sid_enabled: bool = True
+
+    plaz_seats_plaz_down_enabled: bool = True
+    plaz_seats_plaz_up_enabled: bool = True
+    plaz_side_down_enabled: bool = True
+    plaz_side_up_enabled: bool = True
+
+    cupe_up_enabled: bool = True
+    cupe_down_enabled: bool = True
+
 
 class TrackingUpdateSchema(BaseModel):
     from_city_name: Optional[str] = None
@@ -29,6 +40,18 @@ class TrackingUpdateSchema(BaseModel):
 
     date: Optional[datetime.date] = None
     max_price: Optional[Union[int, float]] = None
+
+    sw_enabled: Optional[bool] = None
+    sid_enabled: Optional[bool] = None
+
+    plaz_seats_plaz_down_enabled: Optional[bool] = None
+    plaz_seats_plaz_up_enabled: Optional[bool] = None
+    plaz_side_down_enabled: Optional[bool] = None
+    plaz_side_up_enabled: Optional[bool] = None
+
+    cupe_up_enabled: Optional[bool] = None
+    cupe_down_enabled: Optional[bool] = None
+
 
     first_notification_sent_at: Optional[datetime.datetime] = None
 

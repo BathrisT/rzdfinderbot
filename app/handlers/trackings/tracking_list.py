@@ -107,7 +107,17 @@ async def open_specific_tracking(
         'to_city_id': tracking.to_city_id,
         'to_city_site_code': tracking.to_city_site_code,
         'date': tracking.date.isoformat(),
-        'max_price': float(tracking.max_price) if tracking.max_price is not None else None
+        'max_price': float(tracking.max_price) if tracking.max_price is not None else None,
+
+        'sw_enabled': tracking.sw_enabled,
+        'sid_enabled': tracking.sid_enabled,
+
+        'plaz_seats_plaz_down_enabled': tracking.plaz_seats_plaz_down_enabled,
+        'plaz_seats_plaz_up_enabled': tracking.plaz_seats_plaz_up_enabled,
+        'plaz_side_down_enabled': tracking.plaz_side_down_enabled,
+        'plaz_side_up_enabled': tracking.plaz_side_up_enabled,
+        'cupe_up_enabled': tracking.cupe_up_enabled,
+        'cupe_down_enabled': tracking.cupe_down_enabled
     }
 
     state_data = await state.get_data()

@@ -5,3 +5,4 @@ class EditingTracking(StatesGroup):
     city_to = State()
     date = State()
     max_price = State()
+    seats_types = State()

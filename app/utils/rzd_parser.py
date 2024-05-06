@@ -83,28 +83,51 @@ class RZDParser:
         trains: list[Train] = []
 
         for train_json in response_data['Trains']:
+
+            # СВ
             sw_seats: int = 0
             sw_min_price: float = 9999999999999999
 
-            plaz_seats: int = 0
+            # Плацкарт
             plaz_min_price: float = 9999999999999999
+            # [Плац] плацкарт нижнее:
+            plaz_seats_plaz_down_seats: int = 0
+            # [Плац] плацкарт верхнее:
+            plaz_seats_plaz_up_seats: int = 0
+            # [Плац] Боковое верхнее:
+            plaz_side_down_seats: int = 0
+            # [Плац] Боковое нижнее:
+            plaz_side_up_seats: int = 0
 
-            cupe_seats: int = 0
+            # Купе
             cupe_min_price: float = 9999999999999999
+            # [Купе] Верхнее:
+            cupe_up_seats: int = 0
+            # [Купе] Нижнее:
+            cupe_down_seats: int = 0
 
+            # Сидячие места
             sid_seats: int = 0
             sid_min_price: float = 9999999999999999
 
-            for t in train_json['CarGroups'][:-1]:
+            print(train_json['CarGroups'])
+
+            for t in train_json['CarGroups']:
+                if t.get('HasPlacesForDisabledPersons'):
+                    continue
                 if t['CarTypeName'] == 'ПЛАЦ':
-                    plaz_seats += int(t['TotalPlaceQuantity'])
+                    plaz_seats_plaz_down_seats += int(t['LowerPlaceQuantity'])
+                    plaz_seats_plaz_up_seats += int(t['UpperPlaceQuantity'])
+                    plaz_side_down_seats += int(t['LowerSidePlaceQuantity'])
+                    plaz_side_up_seats += int(t['UpperSidePlaceQuantity'])
                     plaz_min_price = min(plaz_min_price, float(t['MinPrice']))
+                elif t['CarTypeName'] == 'КУПЕ':
+                    cupe_up_seats += int(t['UpperPlaceQuantity'])
+                    cupe_down_seats += int(t['LowerPlaceQuantity'])
+                    cupe_min_price = min(cupe_min_price, float(t['MinPrice']))
                 elif t['CarTypeName'] == 'СВ':
                     sw_seats += int(t['TotalPlaceQuantity'])
                     sw_min_price = min(sw_min_price, float(t['MinPrice']))
-                elif t['CarTypeName'] == 'КУПЕ':
-                    cupe_seats += int(t['TotalPlaceQuantity'])
-                    cupe_min_price = min(cupe_min_price, float(t['MinPrice']))
                 elif t['CarTypeName'] == 'СИД':
                     sid_seats += int(t['PlaceQuantity'])
                     sid_min_price = min(sid_min_price, float(t['MinPrice']))
@@ -118,12 +141,20 @@ class RZDParser:
                     OriginName=train_json['OriginName'],
                     DestinationStationCode=train_json['DestinationStationCode'],
                     DestinationName=train_json['DestinationName'],
+
                     sw_seats=sw_seats,
                     sw_min_price=sw_min_price,
-                    plaz_seats=plaz_seats,
+
                     plaz_min_price=plaz_min_price,
-                    cupe_seats=cupe_seats,
+                    plaz_seats_plaz_down_seats=plaz_seats_plaz_down_seats,
+                    plaz_seats_plaz_up_seats=plaz_seats_plaz_up_seats,
+                    plaz_side_down_seats=plaz_side_down_seats,
+                    plaz_side_up_seats=plaz_side_up_seats,
+
                     cupe_min_price=cupe_min_price,
+                    cupe_down_seats=cupe_down_seats,
+                    cupe_up_seats=cupe_up_seats,
+
                     sid_seats=sid_seats,
                     sid_min_price=sid_min_price
                 ))
@@ -133,14 +164,14 @@ class RZDParser:
 async def main():
     parser = RZDParser()
 
-    # data = await parser.get_trains(
-    #     from_city_id='2060600',
-    #     to_city_id='2060000',
-    #     date=datetime.fromisoformat('2024-01-13T00:00:00')
-    # )
-    # from pprint import pprint
-    # for t in data:
-    #     print(t)
+    data = await parser.get_trains(
+        from_city_id='2060600',
+        to_city_id='2060000',
+        date=datetime.fromisoformat('2024-05-13T00:00:00')
+    )
+    from pprint import pprint
+    for t in data:
+        print(t)
 
 
 if __name__ == '__main__':

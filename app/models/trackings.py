@@ -27,6 +27,20 @@ class TrackingModel(Base):
     date: Mapped[datetime.date] = mapped_column()
     max_price: Mapped[Optional[int]] = mapped_column(DECIMAL, nullable=True)
 
+    # Флаги фильтрации по св, сид
+    sw_enabled: Mapped[bool] = mapped_column(server_default='TRUE')
+    sid_enabled: Mapped[bool] = mapped_column(server_default='TRUE')
+
+    # Флаги фильтрации по плацкартным местам
+    plaz_seats_plaz_down_enabled: Mapped[bool] = mapped_column(server_default='TRUE')
+    plaz_seats_plaz_up_enabled: Mapped[bool] = mapped_column(server_default='TRUE')
+    plaz_side_down_enabled: Mapped[bool] = mapped_column(server_default='TRUE')
+    plaz_side_up_enabled: Mapped[bool] = mapped_column(server_default='TRUE')
+
+    # Флаги фильтрации по купе местам
+    cupe_up_enabled: Mapped[bool] = mapped_column(server_default='TRUE')
+    cupe_down_enabled: Mapped[bool] = mapped_column(server_default='TRUE')
+
     first_notification_sent_at: Mapped[Optional[datetime.datetime]] = mapped_column()
 
     is_finished: Mapped[bool] = mapped_column(server_default='FALSE')

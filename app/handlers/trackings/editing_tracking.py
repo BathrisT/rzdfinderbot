@@ -11,12 +11,12 @@ from config import Config
 from cruds.trackings import TrackingManager
 from keyboards.start import return_to_start_keyboard
 from keyboards.trackings import start_create_tracking_from_scratch_kb, skip_max_price_kb, edit_tracking_kb, \
-    back_to_tracking_kb, edit_max_price_kb, seats_found_kb
+    back_to_tracking_kb, edit_max_price_kb, seats_found_kb, edit_seats_types_kb
 from models.users import UserModel
 from schemas.trackings import TrackingCreateSchema, TrackingUpdateSchema
 from states.editing_tracking import EditingTracking
 from utils.add_messages_in_state_to_delete import add_messages_in_state_to_delete
-from utils.filter_trains import filter_trains
+from utils.filter_trains import filter_trains_by_tracking
 from utils.rzd_links_generator import create_url_to_trains
 from utils.rzd_parser import RZDParser
 
@@ -53,6 +53,41 @@ async def send_tracking_menu(
     to_city_id = tracking_data['to_city_id']
     to_city_site_code = tracking_data['to_city_site_code']
 
+    # Флаги фильтрации по св, сид
+    sw_enabled = tracking_data['sw_enabled']
+    sid_enabled = tracking_data['sid_enabled']
+
+    # Флаги фильтрации по плацкартным местам
+    plaz_seats_plaz_down_enabled = tracking_data['plaz_seats_plaz_down_enabled']
+    plaz_seats_plaz_up_enabled = tracking_data['plaz_seats_plaz_up_enabled']
+    plaz_side_down_enabled = tracking_data['plaz_side_down_enabled']
+    plaz_side_up_enabled = tracking_data['plaz_side_up_enabled']
+
+    # Флаги фильтрации по купе местам
+    cupe_up_enabled = tracking_data['cupe_up_enabled']
+    cupe_down_enabled = tracking_data['cupe_down_enabled']
+
+    # флаги для легкого составления текста
+    all_plaz_enabled = all((
+        plaz_seats_plaz_down_enabled,
+        plaz_seats_plaz_up_enabled,
+        plaz_side_down_enabled,
+        plaz_side_up_enabled,
+    ))
+    all_cupe_enabled = all((
+        cupe_down_enabled,
+        cupe_up_enabled
+    ))
+    all_seats_enabled = all((
+        sw_enabled,
+        sid_enabled,
+        all_plaz_enabled,
+        all_cupe_enabled
+    ))
+
+    # флаг, который показывает сохранено отслеживание или нет
+    not_saved_flag = tracking_data.get('not_saved_flag', False)
+
     date = datetime.date.fromisoformat(tracking_data['date']) if tracking_data['date'] else None
     max_price = tracking_data['max_price']
 
@@ -63,6 +98,9 @@ async def send_tracking_menu(
             f'----\n'
             f'\n'
         )
+
+    if not_saved_flag:
+        text += '<i>(изменения не сохранены)</i> '
 
     if tracking_id is None:
         text += f'📗 Новое отслеживание:\n\n'
@@ -81,7 +119,35 @@ async def send_tracking_menu(
         f'<b>Дата отправления:</b> {date_text}\n'
     )
     if max_price is not None:
-        text += '<b>Цена до:</b> {:.2f}₽'.format(max_price)
+        text += '<b>Цена до:</b> {:.2f}₽\n'.format(max_price)
+
+    text_items = []
+    if all_seats_enabled:
+        text_items.append('все')
+    else:
+        if all_plaz_enabled:
+            text_items.append('Плац все')
+        else:
+            if plaz_seats_plaz_down_enabled:
+                text_items.append('Плац [низ]')
+            if plaz_seats_plaz_up_enabled:
+                text_items.append('Плац [верх]')
+            if plaz_side_down_enabled:
+                text_items.append('Плац бок [низ]')
+            if plaz_side_up_enabled:
+                text_items.append('Плац бок [верх]')
+        if all_cupe_enabled:
+            text_items.append('Купе все')
+        else:
+            if cupe_down_enabled:
+                text_items.append('Купе [низ]')
+            if cupe_up_enabled:
+                text_items.append('Купе [верх]')
+        if sid_enabled:
+            text_items.append('Сид')
+        if sw_enabled:
+            text_items.append('СВ')
+    text += f'<b>Места:</b> {", ".join(text_items)}'
 
     return await bot.send_message(
         chat_id=user.id,
@@ -176,13 +242,15 @@ async def handle_edit_city(
         tracking_data.update({
             'from_city_name': selected_city.name,
             'from_city_id': selected_city.station_code,
-            'from_city_site_code': selected_city.site_code
+            'from_city_site_code': selected_city.site_code,
+            'not_saved_flag': True
         })
     else:
         tracking_data.update({
             'to_city_name': selected_city.name,
             'to_city_id': selected_city.station_code,
-            'to_city_site_code': selected_city.site_code
+            'to_city_site_code': selected_city.site_code,
+            'not_saved_flag': True
         })
     await state.update_data({'tracking_data': tracking_data})
 
@@ -308,7 +376,8 @@ async def handle_edit_date(
 
     tracking_data: dict = (await state.get_data())['tracking_data']
     tracking_data.update({
-        'date': date.date().isoformat()
+        'date': date.date().isoformat(),
+        'not_saved_flag': True
     })
     await state.set_state(None)
     await state.update_data({'tracking_data': tracking_data})
@@ -384,7 +453,10 @@ async def handle_edit_max_price(
     tracking_data.update({
         'max_price': max_price
     })
-    await state.update_data({'tracking_data': tracking_data})
+    await state.update_data({
+        'tracking_data': tracking_data,
+        'not_saved_flag': True
+    })
 
     sent_message = await send_tracking_menu(
         user=message_or_callback.from_user,
@@ -400,6 +472,74 @@ async def handle_edit_max_price(
     )
 
     await state.set_state(None)
+
+@router.callback_query(F.data == 'tracking_edit_seats_types')
+async def edit_seats_types(
+        callback: CallbackQuery,
+        state: FSMContext
+):
+    await state.set_state(EditingTracking.seats_types)
+    tracking_data: dict = (await state.get_data())['tracking_data']
+    text = (
+        'Выберите, какие <b>типы мест/вагонов</b> нужны вам для отслеживания. Условные обозначения на кнопках:\n'
+        '✅ - Тип места отслеживается\n'
+        '❌ - Тип места не отслеживается'
+    )
+    sent_message = await callback.bot.send_message(
+        chat_id=callback.from_user.id,
+        text=text,
+        parse_mode='HTML',
+        disable_web_page_preview=True,
+        reply_markup=edit_seats_types_kb(
+            sw_enabled=tracking_data['sw_enabled'],
+            sid_enabled=tracking_data['sid_enabled'],
+
+            plaz_seats_plaz_down_enabled=tracking_data['plaz_seats_plaz_down_enabled'],
+            plaz_seats_plaz_up_enabled=tracking_data['plaz_seats_plaz_up_enabled'],
+            plaz_side_down_enabled=tracking_data['plaz_side_down_enabled'],
+            plaz_side_up_enabled=tracking_data['plaz_side_up_enabled'],
+            cupe_up_enabled=tracking_data['cupe_up_enabled'],
+            cupe_down_enabled=tracking_data['cupe_down_enabled'],
+        )
+    )
+    await add_messages_in_state_to_delete(
+        query=callback,
+        state=state,
+        messages=[sent_message],
+        delete_prev_messages=True
+    )
+
+
+@router.callback_query(F.data.startswith('seat_switch_'), StateFilter(EditingTracking.seats_types))
+async def handle_edit_seats_types(
+        callback: CallbackQuery,
+        state: FSMContext
+):
+    tracking_data: dict = (await state.get_data())['tracking_data']
+    switching_seat_type = callback.data.split('seat_switch_')[-1]
+    seats_types = [
+        'plaz_seats_plaz_down',
+        'plaz_seats_plaz_up',
+        'plaz_side_down',
+        'plaz_side_up',
+        'cupe_up',
+        'cupe_down',
+        'sw',
+        'sid',
+    ]
+
+    for seat_type in seats_types:
+        if seat_type == switching_seat_type:
+            tracking_data.update({f'{seat_type}_enabled': not tracking_data[f'{seat_type}_enabled']})
+
+    tracking_data.update({'not_saved_flag': True})
+    await state.update_data({'tracking_data': tracking_data})
+    await edit_seats_types(
+        callback=callback,
+        state=state
+    )
+
+
 
 @router.callback_query(F.data == 'save_tracking')
 async def save_tracking(
@@ -438,9 +578,18 @@ async def save_tracking(
         to_city_id=tracking_data['to_city_id'],
         date=datetime.date.fromisoformat(tracking_data['date'])
     )
-    specific_trains = filter_trains(
+    specific_trains = filter_trains_by_tracking(
         trains=trains_on_this_route,
-        max_price=tracking_data['max_price']
+        sw_enabled=tracking_data['sw_enabled'],
+        sid_enabled=tracking_data['sid_enabled'],
+        max_price=tracking_data['max_price'],
+        plaz_seats_plaz_down_enabled=tracking_data['plaz_seats_plaz_down_enabled'],
+        plaz_seats_plaz_up_enabled=tracking_data['plaz_seats_plaz_up_enabled'],
+        plaz_side_down_enabled=tracking_data['plaz_side_down_enabled'],
+        plaz_side_up_enabled=tracking_data['plaz_side_up_enabled'],
+        cupe_up_enabled=tracking_data['cupe_up_enabled'],
+        cupe_down_enabled=tracking_data['cupe_down_enabled'],
+        min_seats=2
     )
     if len(specific_trains) > 0:
         url = create_url_to_trains(
@@ -485,6 +634,15 @@ async def save_tracking(
             to_city_site_code=tracking_data['to_city_site_code'],
             date=datetime.date.fromisoformat(tracking_data['date']),
             max_price=tracking_data.get('max_price'),
+            sw_enabled=bool(tracking_data.get('sw_enabled')),
+            sid_enabled=bool(tracking_data.get('sid_enabled')),
+
+            plaz_seats_plaz_down_enabled=bool(tracking_data.get('plaz_seats_plaz_down_enabled')),
+            plaz_seats_plaz_up_enabled=bool(tracking_data.get('plaz_seats_plaz_up_enabled')),
+            plaz_side_down_enabled=bool(tracking_data.get('plaz_side_down_enabled')),
+            plaz_side_up_enabled=bool(tracking_data.get('plaz_side_up_enabled')),
+            cupe_up_enabled=bool(tracking_data.get('cupe_up_enabled')),
+            cupe_down_enabled=bool(tracking_data.get('cupe_down_enabled')),
             is_finished=False
         )
 
@@ -517,10 +675,20 @@ async def save_tracking(
             to_city_id=tracking_data['to_city_id'],
             to_city_site_code=tracking_data['to_city_site_code'],
             date=tracking_data['date'],
-            max_price=tracking_data.get('max_price')
+            max_price=tracking_data.get('max_price'),
+            sw_enabled=bool(tracking_data.get('sw_enabled')),
+            sid_enabled=bool(tracking_data.get('sid_enabled')),
+
+            plaz_seats_plaz_down_enabled=bool(tracking_data.get('plaz_seats_plaz_down_enabled')),
+            plaz_seats_plaz_up_enabled=bool(tracking_data.get('plaz_seats_plaz_up_enabled')),
+            plaz_side_down_enabled=bool(tracking_data.get('plaz_side_down_enabled')),
+            plaz_side_up_enabled=bool(tracking_data.get('plaz_side_up_enabled')),
+            cupe_up_enabled=bool(tracking_data.get('cupe_up_enabled')),
+            cupe_down_enabled=bool(tracking_data.get('cupe_down_enabled')),
         ))
         tracking_data['tracking_id'] = tracking.id
         saved_text = '<b>✅ Отслеживание успешно создано</b>'
+
     else:
         # проверка на то, что отслеживание принадлежит этому юзеру
         this_tracking = await tracking_manager.get(tracking_data['tracking_id'])
@@ -538,12 +706,23 @@ async def save_tracking(
                 to_city_id=tracking_data['to_city_id'],
                 to_city_site_code=tracking_data['to_city_site_code'],
                 date=tracking_data['date'],
-                max_price=tracking_data.get('max_price')
+                max_price=tracking_data.get('max_price'),
+
+                sw_enabled=bool(tracking_data.get('sw_enabled')),
+                sid_enabled=bool(tracking_data.get('sid_enabled')),
+
+                plaz_seats_plaz_down_enabled=bool(tracking_data.get('plaz_seats_plaz_down_enabled')),
+                plaz_seats_plaz_up_enabled=bool(tracking_data.get('plaz_seats_plaz_up_enabled')),
+                plaz_side_down_enabled=bool(tracking_data.get('plaz_side_down_enabled')),
+                plaz_side_up_enabled=bool(tracking_data.get('plaz_side_up_enabled')),
+                cupe_up_enabled=bool(tracking_data.get('cupe_up_enabled')),
+                cupe_down_enabled=bool(tracking_data.get('cupe_down_enabled')),
             )
         )
         saved_text = '<b>✅ Отслеживание обновлено</b>'
 
     await session.commit()
+    tracking_data['not_saved_flag'] = False
 
     state_data = await state.get_data()
     state_data['tracking_data'] = tracking_data

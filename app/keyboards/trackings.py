@@ -38,6 +38,7 @@ def edit_tracking_kb(is_new_tracking: bool, return_callback_data: str = 'start')
             InlineKeyboardButton(text='🎯 Куда', callback_data='tracking_edit_to_city'),
         ], [
             InlineKeyboardButton(text='📆 Дата', callback_data='tracking_edit_date'),
+            InlineKeyboardButton(text='💺 Место', callback_data='tracking_edit_seats_types'),
             InlineKeyboardButton(text='💳 Цена до', callback_data='tracking_edit_max_price'),
         ],
         save_row,
@@ -52,6 +53,26 @@ def back_to_tracking_kb():
 def edit_max_price_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text='❌ Не указывать (обнулить)', callback_data='set_null_edit_max_price')],
+        [InlineKeyboardButton(text='🔙 Вернуться к отслеживанию', callback_data='edit_tracking')],
+    ])
+
+def edit_seats_types_kb(
+        sw_enabled: bool,
+        sid_enabled: bool,
+
+        plaz_seats_plaz_down_enabled: bool,
+        plaz_seats_plaz_up_enabled: bool,
+        plaz_side_down_enabled: bool,
+        plaz_side_up_enabled: bool,
+        cupe_up_enabled: bool,
+        cupe_down_enabled: bool,
+):
+    _ = lambda t: '✅' if t else '❌'
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f'{_(plaz_seats_plaz_down_enabled)} Плац [низ]', callback_data='seat_switch_plaz_seats_plaz_down'), InlineKeyboardButton(text=f'{_(plaz_seats_plaz_up_enabled)} Плац [верх]', callback_data='seat_switch_plaz_seats_plaz_up')],
+        [InlineKeyboardButton(text=f'{_(plaz_side_down_enabled)} Плац бок [низ]', callback_data='seat_switch_plaz_side_down'), InlineKeyboardButton(text=f'{_(plaz_side_up_enabled)} Плац бок [верх]', callback_data='seat_switch_plaz_side_up')],
+        [InlineKeyboardButton(text=f'{_(cupe_down_enabled)} Купе [низ]', callback_data='seat_switch_cupe_down'), InlineKeyboardButton(text=f'{_(cupe_up_enabled)} Купе [верх]', callback_data='seat_switch_cupe_up')],
+        [InlineKeyboardButton(text=f'{_(sw_enabled)} СВ', callback_data='seat_switch_sw'), InlineKeyboardButton(text=f'{_(sid_enabled)} Сид', callback_data='seat_switch_sid')],
         [InlineKeyboardButton(text='🔙 Вернуться к отслеживанию', callback_data='edit_tracking')],
     ])
 

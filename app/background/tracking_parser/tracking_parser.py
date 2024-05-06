@@ -16,7 +16,7 @@ from models.trackings import TrackingModel
 from schemas.rzd_parser import Train
 from schemas.tracking_notifications import TrackingNotificationCreateSchema
 from schemas.trackings import TrackingUpdateSchema
-from utils.filter_trains import filter_trains, check_min_price
+from utils.filter_trains import filter_trains_by_tracking, check_min_price
 from utils.rzd_links_generator import create_url_to_trains
 from utils.rzd_parser import RZDParser
 from .exceptions import TrackingFinishedException
@@ -75,15 +75,27 @@ class TrackingParser:
             )
             prices_row = '💳 '
             available_filtered_seats = []
-            # train.sw_seats, train.cupe_seats, train.plaz_seats, train.sid_seats
-            if train.sw_seats >= 1 and check_min_price(tracking.max_price, train.sw_min_price):
+            if tracking.sw_enabled and train.sw_seats >= 1 and check_min_price(tracking.max_price, train.sw_min_price):
                 available_filtered_seats.append(f'<b>СВ [{train.sw_seats}]</b> - {int(train.sw_min_price)}₽')
-            if train.cupe_seats >= 1 and check_min_price(tracking.max_price, train.cupe_min_price):
-                available_filtered_seats.append(f'<b>Купе [{train.cupe_seats}]</b> - {int(train.cupe_min_price)}₽')
-            if train.plaz_seats >= 1 and check_min_price(tracking.max_price, train.plaz_min_price):
-                available_filtered_seats.append(f'<b>Плац [{train.plaz_seats}]</b> - {int(train.plaz_min_price)}₽')
-            if train.sid_seats >= 1 and check_min_price(tracking.max_price, train.sid_min_price):
+            if tracking.sid_enabled and train.sid_seats >= 1 and check_min_price(tracking.max_price, train.sid_min_price):
                 available_filtered_seats.append(f'<b>Сид [{train.sid_seats}]</b> - {int(train.sid_min_price)}₽')
+
+            s = tracking.cupe_up_enabled * train.cupe_up_seats + tracking.cupe_down_enabled * train.cupe_down_seats
+            if any((tracking.cupe_up_enabled, tracking.cupe_down_enabled)) and s >= 1 and \
+                    check_min_price(tracking.max_price, train.cupe_min_price):
+                available_filtered_seats.append(f'<b>Купе [{s}]</b> - {int(train.cupe_min_price)}₽')
+
+            s = (
+                    tracking.plaz_seats_plaz_down_enabled * train.plaz_seats_plaz_down_seats +
+                    tracking.plaz_seats_plaz_up_enabled * train.plaz_seats_plaz_up_seats +
+                    tracking.plaz_side_down_enabled * train.plaz_side_down_seats +
+                    tracking.plaz_side_up_enabled * train.plaz_side_up_seats
+            )
+            if any((tracking.plaz_seats_plaz_down_enabled, tracking.plaz_seats_plaz_up_enabled,
+                    tracking.plaz_side_down_enabled, tracking.plaz_side_up_enabled)) and s >= 1 and \
+                    check_min_price(tracking.max_price, train.plaz_min_price):
+                available_filtered_seats.append(f'<b>Плац [{s}]</b> - {int(train.plaz_min_price)}₽')
+
             prices_row += ', '.join(available_filtered_seats)
             train_text += f'{prices_row}\n\n'
             text += train_text
@@ -109,9 +121,18 @@ class TrackingParser:
             to_city_id=tracking.to_city_id,
             date=tracking.date
         )
-        filtered_trains = filter_trains(
+        filtered_trains = filter_trains_by_tracking(
             trains=trains,
-            max_price=tracking.max_price
+            max_price=tracking.max_price,
+            sw_enabled=tracking.sw_enabled,
+            sid_enabled=tracking.sid_enabled,
+            plaz_seats_plaz_down_enabled=tracking.plaz_seats_plaz_down_enabled,
+            plaz_seats_plaz_up_enabled=tracking.plaz_seats_plaz_up_enabled,
+            plaz_side_down_enabled=tracking.plaz_side_down_enabled,
+            plaz_side_up_enabled=tracking.plaz_side_up_enabled,
+            cupe_up_enabled=tracking.cupe_up_enabled,
+            cupe_down_enabled=tracking.cupe_down_enabled,
+            min_seats=1
         )
         async with async_session_maker() as session:
             tracking_manager = TrackingManager(session=session)
@@ -153,9 +174,6 @@ class TrackingParser:
 
         logger.debug(f'#{tracking.id} handled')
 
-    def _add_connection_status(self, status: bool):
-        self._last_connection_statuses = self._last_connection_statuses[::-1][:self._length_of_last_connection_statuses] + [status]
-
     async def _handle_tracking_with_exception_handling(
             self,
             queue_tracking_ids: Queue,
@@ -174,10 +192,10 @@ class TrackingParser:
 
         try:
             await self._handle_tracking(tracking=tracking)
-            self._add_connection_status(True)
+            self._last_connection_statuses = self._last_connection_statuses[::-1][:self._length_of_last_connection_statuses] + [True]
         except asyncio.exceptions.TimeoutError:
             # Информацию о каждой ошибке подключения не присылаем
-            self._add_connection_status(False)
+            self._last_connection_statuses = self._last_connection_statuses[::-1][:self._length_of_last_connection_statuses] + [False]
             if len(self._last_connection_statuses) == self._length_of_last_connection_statuses and not any(self._last_connection_statuses):
                 logger.error(f'Произошла ошибка подключения к серверу РЖД ({self._length_of_last_connection_statuses} подряд)')
                 self._last_connection_statuses = []

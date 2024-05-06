@@ -127,7 +127,19 @@ async def new_tracking_from_other(
         'to_city_id': tracking.to_city_id,
         'to_city_site_code': tracking.to_city_site_code,
         'date': None,
-        'max_price': float(tracking.max_price) if tracking.max_price else None
+        'max_price': float(tracking.max_price) if tracking.max_price else None,
+
+        'sw_enabled': tracking.sw_enabled,
+        'sid_enabled': tracking.sid_enabled,
+
+        'plaz_seats_plaz_down_enabled': tracking.plaz_seats_plaz_down_enabled,
+        'plaz_seats_plaz_up_enabled': tracking.plaz_seats_plaz_up_enabled,
+        'plaz_side_down_enabled': tracking.plaz_side_down_enabled,
+        'plaz_side_up_enabled': tracking.plaz_side_up_enabled,
+        'cupe_up_enabled': tracking.cupe_up_enabled,
+        'cupe_down_enabled': tracking.cupe_down_enabled,
+
+        'not_saved_flag': True
     }
 
     state_data = await state.get_data()
@@ -191,7 +203,19 @@ async def start_create_tracking_from_scratch(
             'to_city_site_code': None,
 
             'date': None,
-            'max_price': None
+            'max_price': None,
+
+            'sw_enabled': True,
+            'sid_enabled': True,
+
+            'plaz_seats_plaz_down_enabled': True,
+            'plaz_seats_plaz_up_enabled': True,
+            'plaz_side_down_enabled': True,
+            'plaz_side_up_enabled': True,
+            'cupe_up_enabled': True,
+            'cupe_down_enabled': True,
+
+            'not_saved_flag': True
         }
     })
 
