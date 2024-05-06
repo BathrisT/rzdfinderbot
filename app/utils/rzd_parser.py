@@ -110,8 +110,6 @@ class RZDParser:
             sid_seats: int = 0
             sid_min_price: float = 9999999999999999
 
-            print(train_json['CarGroups'])
-
             for t in train_json['CarGroups']:
                 if t.get('HasPlacesForDisabledPersons'):
                     continue
