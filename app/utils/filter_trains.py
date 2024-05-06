@@ -39,13 +39,13 @@ def filter_trains_by_tracking(
             specific_trains.append(train)
 
         # Фильтрация по плацкарту
-        elif plaz_seats_plaz_down_enabled and train.plaz_seats_plaz_down_seats >= min_seats and check_min_price(max_price, train.cupe_min_price):
+        elif plaz_seats_plaz_down_enabled and train.plaz_seats_plaz_down_seats >= min_seats and check_min_price(max_price, train.plaz_min_price):
             specific_trains.append(train)
-        elif plaz_seats_plaz_up_enabled and train.plaz_seats_plaz_up_seats >= min_seats and check_min_price(max_price, train.cupe_min_price):
+        elif plaz_seats_plaz_up_enabled and train.plaz_seats_plaz_up_seats >= min_seats and check_min_price(max_price, train.plaz_min_price):
             specific_trains.append(train)
-        elif plaz_side_down_enabled and train.plaz_side_down_seats >= min_seats and check_min_price(max_price, train.cupe_min_price):
+        elif plaz_side_down_enabled and train.plaz_side_down_seats >= min_seats and check_min_price(max_price, train.plaz_min_price):
             specific_trains.append(train)
-        elif plaz_side_up_enabled and train.plaz_side_up_seats >= min_seats and check_min_price(max_price, train.cupe_min_price):
+        elif plaz_side_up_enabled and train.plaz_side_up_seats >= min_seats and check_min_price(max_price, train.plaz_min_price):
             specific_trains.append(train)
 
         if train.train_number == '077Ы':
