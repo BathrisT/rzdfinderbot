@@ -47,9 +47,9 @@ def filter_trains_by_tracking(
             specific_trains.append(train)
         elif plaz_side_up_enabled and train.plaz_side_up_seats >= min_seats and check_min_price(max_price, train.cupe_min_price):
             specific_trains.append(train)
-    return specific_trains
 
-# sid found: train_number='092И' departure_date=datetime.datetime(2024, 6, 30, 16, 50) arrival_date=datetime.datetime(2024, 6, 30, 23, 7)
-# from_city_id='2000002' from_city_name='Москва Ярославская' to_city_id='2060001' to_city_name='Нижний Новгород Московский'
-# sw_seats=0 sw_min_price=1e+16 sid_seats=0 sid_min_price=1e+16 plaz_min_price=2108.8 plaz_seats_plaz_down_seats=44 plaz_seats_plaz_up_seats=3 plaz_side_down_seats=10 plaz_side_up_seats=14 cupe_min_price=3374.1 cupe_up_seats=54 cupe_down_seats=25
+        if train.train_number == '077Ы':
+            print('077Ы', train)
+
+    return specific_trains
 
