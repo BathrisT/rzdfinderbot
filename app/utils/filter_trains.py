@@ -48,8 +48,5 @@ def filter_trains_by_tracking(
         elif plaz_side_up_enabled and train.plaz_side_up_seats >= min_seats and check_min_price(max_price, train.plaz_min_price):
             specific_trains.append(train)
 
-        if train.train_number == '077Ы':
-            print('077Ы', train)
-
     return specific_trains
 
